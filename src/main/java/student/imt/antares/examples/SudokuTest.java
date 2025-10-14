@@ -18,10 +18,9 @@ public class SudokuTest {
     public static void main(String[] args) {
         System.out.println("=== Sudoku Solver with ACO ===\n");
 
-        //testEasySudoku();
-        //testMediumSudoku();
-        //testHardSudoku();
-        testCustomHardSudoku();
+        testEasySudoku();
+        testMediumSudoku();
+        testHardSudoku();
     }
 
     private static void testEasySudoku() {
@@ -69,30 +68,15 @@ public class SudokuTest {
         System.out.println();
     }
 
-    private static void testCustomHardSudoku() {
-        System.out.println("--- Custom Hard Sudoku (from image) ---");
-        int[][] puzzle = SudokuProblem.createCustomHardPuzzle();
-
-        System.out.println("Initial puzzle:");
-        SudokuProblem.printGrid(puzzle);
-        System.out.println();
-
-        Problem problem = SudokuProblem.create(puzzle);
-        Assignment solution = solveWithACO(problem, 2000);
-
-        printResult(problem, solution);
-        System.out.println();
-    }
-
     private static Assignment solveWithACO(Problem problem, int maxCycles) {
         // Setup ACO parameters tuned for Sudoku
         ACOParameters params = new ACOParameters(
             2.0,    // alpha: pheromone importance
             0,    // beta: heuristic importance
-            0.01,   // rho: evaporation rate (1% as recommended by paper)
+            0.01,   // rho: evaporation rate
             0.01,   // tauMin
             10.0,   // tauMax
-            30      // numberOfAnts (as recommended by paper)
+            30      // numberOfAnts
         );
 
         Colony colony = Colony.create(problem, params);
