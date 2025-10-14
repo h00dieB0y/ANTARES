@@ -33,12 +33,12 @@ public class TeacherSchedulingTest {
 
         // Configure ACO parameters
         ACOParameters params = new ACOParameters(
-            1.5,    // alpha: lower pheromone importance for more exploration
-            0.0,    // beta: no heuristic
-            0.1,    // rho: 10% evaporation rate for faster adaptation
+            2.0,    // alpha: pheromone importance
+            0,    // beta: heuristic importance
+            0.01,   // rho: evaporation rate
             0.01,   // tauMin
             10.0,   // tauMax
-            50      // numberOfAnts: more ants for better exploration
+            30      // numberOfAnts
         );
 
         System.out.println("ACO Parameters:");
