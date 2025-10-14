@@ -196,9 +196,9 @@ mvn exec:java
 ## Authors & Contributors
 
 **Primary Authors:**
-- **Manneemi Lekitsoukou** ([H00dieB0y](https://github.com/H00dieB0y))
-- **Jean-Baptiste Zinobienne** (Angry-Jay) - <jinozebian@gmail.com>
-- **Anas Alaoui** (Ariazoox) - <anas.alaoui2002@gmail.com>
+- **Manne Emile KITSOUKOU** ([H00dieB0y](https://github.com/H00dieB0y))
+- **Jana ZEBIAN** ([Angry-Jay](https://github.com/Angry-Jay))
+- **Anas Alaoui** ([Ariazoox](https://github.com/Ariazoox))
 
 **Institution**: IMT (Institut Mines-Télécom)
 
