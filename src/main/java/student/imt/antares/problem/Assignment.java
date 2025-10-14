@@ -33,6 +33,11 @@ public final class Assignment {
         return this;
     }
 
+    public Assignment unassign(Variable<?> variable) {
+        assignments.remove(variable);
+        return this;
+    }
+
     /**
      * Creates an independent copy of this assignment.
      * Use when storing assignments that must not be affected by future mutations.

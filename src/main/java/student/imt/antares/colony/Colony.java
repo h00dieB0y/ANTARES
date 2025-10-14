@@ -104,7 +104,7 @@ public class Colony {
                                                          variableSelector, valueSelector, solver);
 
             if (assignment.size() > 0) {
-                cycleAssignments.add(assignment);
+                cycleAssignments.add(assignment.snapshot());
                 logger.trace("Ant {} constructed assignment with {}/{} variables",
                            ant, assignment.size(), problem.size());
 

@@ -120,10 +120,13 @@ public class BasicCSPSolver implements CSPSolver {
         Set<T> currentDomain = getCurrentDomain(variable);
 
         // Filter out values that would violate the constraint
+        // Optimization: Test in-place and rollback instead of creating snapshots
         Set<T> newDomain = currentDomain.stream()
                 .filter(value -> {
-                    Assignment testAssignment = assignment.assign(variable, value);
-                    return constraint.isSatisfiedBy(testAssignment);
+                    assignment.assign(variable, value);
+                    boolean satisfied = constraint.isSatisfiedBy(assignment);
+                    assignment.unassign(variable);
+                    return satisfied;
                 })
                 .collect(Collectors.toSet());
 
