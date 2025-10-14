@@ -110,13 +110,13 @@ public class Colony {
 
                 // Track best in this cycle
                 if (assignment.size() > cycleBest.size()) {
-                    cycleBest = assignment;
+                    cycleBest = assignment.snapshot();
                     logger.debug("New cycle best: {}/{} variables", cycleBest.size(), problem.size());
                 }
 
                 // Track global best
                 if (assignment.size() > bestAssignment.size()) {
-                    bestAssignment = assignment;
+                    bestAssignment = assignment.snapshot();
                     logger.info("New global best: {}/{} variables", bestAssignment.size(), problem.size());
                 }
             } else {

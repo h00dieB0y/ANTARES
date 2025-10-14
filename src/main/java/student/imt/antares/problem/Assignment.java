@@ -7,28 +7,38 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Immutable mapping from variables to their assigned values.
+ * Mutable mapping from variables to their assigned values.
  * Supports partial assignments during search and complete solutions.
+ *
+ * Performance: Mutates in-place to avoid allocations. Use snapshot() when
+ * storing assignments that must remain independent.
  */
 public final class Assignment {
     private final Map<Variable<?>, Object> assignments;
 
     private Assignment(Map<Variable<?>, Object> assignments) {
-        this.assignments = Map.copyOf(assignments);
+        this.assignments = assignments;
     }
 
     public static Assignment empty() {
-        return new Assignment(Map.of());
+        return new Assignment(new HashMap<>());
     }
 
     public static Assignment of(Map<Variable<?>, Object> assignments) {
-        return new Assignment(assignments);
+        return new Assignment(new HashMap<>(assignments));
     }
 
     public <T> Assignment assign(Variable<T> variable, T value) {
-        Map<Variable<?>, Object> newAssignments = new HashMap<>(assignments);
-        newAssignments.put(variable, value);
-        return new Assignment(newAssignments);
+        assignments.put(variable, value);
+        return this;
+    }
+
+    /**
+     * Creates an independent copy of this assignment.
+     * Use when storing assignments that must not be affected by future mutations.
+     */
+    public Assignment snapshot() {
+        return new Assignment(new HashMap<>(assignments));
     }
 
     public <T> Optional<T> getValue(Variable<T> variable) {
