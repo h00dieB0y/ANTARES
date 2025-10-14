@@ -1,9 +1,6 @@
 package student.imt.antares.colony;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -41,9 +38,7 @@ public final class PheromoneMatrix {
         }
 
         double[] pheromones = new double[index];
-        for (int i = 0; i < pheromones.length; i++) {
-            pheromones[i] = initialPheromone;
-        }
+        Arrays.fill(pheromones, initialPheromone);
 
         logger.info("Initialized pheromone matrix: {} trails with value {}",
                    pheromones.length, initialPheromone);
@@ -66,8 +61,9 @@ public final class PheromoneMatrix {
     }
 
     public PheromoneMatrix evaporate(double evaporationRate) {
-        validateRange(evaporationRate, "Evaporation rate");
-
+        if (evaporationRate < 0 || evaporationRate > 1) {
+            throw new IllegalArgumentException("evaporation rate must be in [0, 1], got: " + evaporationRate);
+        }
         double factor = 1.0 - evaporationRate;
         for (int i = 0; i < pheromones.length; i++) {
             pheromones[i] *= factor;
@@ -99,7 +95,7 @@ public final class PheromoneMatrix {
         }
 
         for (int i = 0; i < pheromones.length; i++) {
-            pheromones[i] = Math.min(maxPheromone, Math.max(minPheromone, pheromones[i]));
+            pheromones[i] = Math.clamp(pheromones[i], minPheromone, maxPheromone);
         }
 
         return this;
@@ -111,9 +107,9 @@ public final class PheromoneMatrix {
         }
     }
 
-    private <T> void depositForVariable(Variable<T> var, Assignment assignment, double amount) {
-        assignment.getValue(var).ifPresent(value -> {
-            Trail<T> trail = new Trail<>(var, value);
+    private <T> void depositForVariable(Variable<T> variable, Assignment assignment, double amount) {
+        assignment.getValue(variable).ifPresent(value -> {
+            Trail<T> trail = new Trail<>(variable, value);
             Integer index = trailToIndex.get(trail);
             if (index != null) {
                 pheromones[index] += amount;
@@ -127,24 +123,18 @@ public final class PheromoneMatrix {
         }
     }
 
-    private static void validateRange(double value, String paramName) {
-        if (value < 0 || value > 1) {
-            throw new IllegalArgumentException(paramName + " must be in [0, 1], got: " + value);
-        }
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         PheromoneMatrix that = (PheromoneMatrix) obj;
-        return java.util.Arrays.equals(pheromones, that.pheromones) &&
+        return Arrays.equals(pheromones, that.pheromones) &&
                trailToIndex.equals(that.trailToIndex);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(java.util.Arrays.hashCode(pheromones), trailToIndex);
+        return Objects.hash(Arrays.hashCode(pheromones), trailToIndex);
     }
 
     @Override
@@ -152,20 +142,20 @@ public final class PheromoneMatrix {
         return "PheromoneMatrix{" + pheromones.length + " trails}";
     }
 
-    private static record Trail<T>(Variable<T> var, T value) {
+    private record Trail<T>(Variable<T> variable, T value) {
         public Trail {
-            if (var == null || value == null) {
+            if (variable == null || value == null) {
                 throw new IllegalArgumentException("Variable and value cannot be null");
             }
-            if (!var.domain().contains(value)) {
+            if (!variable.domain().contains(value)) {
                 throw new IllegalArgumentException(
-                    "Value " + value + " not in domain of variable " + var.name());
+                    "Value " + value + " not in domain of variable " + variable.name());
             }
         }
 
         @Override
         public String toString() {
-            return String.format("(%s=%s)", var.name(), value);
+            return String.format("(%s=%s)", variable.name(), value);
         }
     }
 }
