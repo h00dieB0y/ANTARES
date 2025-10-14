@@ -114,7 +114,7 @@ public class AssignmentConstructor {
             // Filter out already assigned singletons
             final Assignment currentAssignmentForFilter = current;
             var unassignedSingletons = singletons.stream()
-                    .filter(var -> !currentAssignmentForFilter.isAssigned(var))
+                    .filter(variable -> !currentAssignmentForFilter.isAssigned(variable))
                     .toList();
 
             if (unassignedSingletons.isEmpty()) {
