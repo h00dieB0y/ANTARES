@@ -122,7 +122,9 @@ public class BasicCSPSolver implements CSPSolver {
         // Filter out values that would violate the constraint
         Set<T> newDomain = currentDomain.stream()
                 .filter(value -> {
-                    Assignment testAssignment = assignment.assign(variable, value);
+                    // CRITICAL: Must snapshot to avoid mutating the real assignment during testing
+                    Assignment testAssignment = assignment.snapshot();
+                    testAssignment.assign(variable, value);
                     return constraint.isSatisfiedBy(testAssignment);
                 })
                 .collect(Collectors.toSet());

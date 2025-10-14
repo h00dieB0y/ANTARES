@@ -37,7 +37,7 @@ public class AssignmentConstructor {
         logger.trace("Starting assignment construction for problem size {}", problem.size());
 
         Assignment assignment = Assignment.empty();
-        solver.reset();
+        solver.reset(); // Reset solver state for this ant
 
         int step = 0;
         while (!assignment.isComplete(problem.size())) {
