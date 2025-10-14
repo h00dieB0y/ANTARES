@@ -2,7 +2,7 @@
 
 **Ant Algorithm for Trail-based Exploration & Resolution Systems**
 
-A high-performance implementation of the Ant-CP algorithm for solving Constraint Satisfaction Problems (CSP) using Ant Colony Optimization (ACO).
+An implementation of the Ant-CP algorithm for solving Constraint Satisfaction Problems (CSP) using Ant Colony Optimization (ACO).
 
 ---
 
@@ -14,7 +14,6 @@ ANTARES implements the MAX-MIN Ant System (MMAS) approach to CSP solving, as des
 
 - **Faithful Research Implementation**: Adheres to the Ant-CP algorithm specification from ACO research papers
 - **Domain-Driven Design**: Clean separation between CSP domain model, ACO components, and solution construction
-- **High Performance**: Optimized for production use with cache-friendly data structures and minimal allocations
 - **Extensible Architecture**: Strategy pattern-based design allows easy experimentation with different selection heuristics and pheromone update strategies
 - **Type-Safe**: Leverages Java 21 features including records, generics, and pattern matching
 
@@ -31,13 +30,6 @@ The implementation follows the **Ant-CP algorithm** for solving CSPs:
    - Propagating constraints with automatic singleton assignment
 3. **Pheromone Update**: MAX-MIN strategy with evaporation and bounded trails [τ_min, τ_max]
 4. **Termination**: Returns best solution found or stops after max cycles
-
-### Performance Characteristics
-
-- **Execution Time**: ~757ms for 2000 cycles on complex CSP instances
-- **Throughput**: ~2,640 cycles/second
-- **Memory Efficiency**: Cache-optimized primitive arrays, minimal GC pressure
-- **Scalability**: Linear time complexity per cycle with respect to problem size
 
 ---
 
@@ -148,22 +140,6 @@ boolean isValid = problem.isSolution(solution);
 
 ---
 
-## Performance Optimizations
-
-The implementation includes several performance optimizations:
-
-1. **Mutable Assignments**: In-place updates eliminate 99% of allocations (1.2M+ per run)
-2. **Array-Based Pheromones**: Primitive `double[]` arrays instead of `Map<Trail, Double>` for cache efficiency
-3. **Zero-Copy Updates**: Pheromone evaporation/deposit operations mutate in-place
-4. **Minimal Allocations**: Explicit `snapshot()` calls only when storing best solutions
-
-These optimizations result in:
-- **4-5x overall speedup** compared to naive immutable implementation
-- **92% memory reduction** per cycle
-- **Reduced GC pressure** (90% fewer GC pauses)
-
----
-
 ## Configuration & Tuning
 
 ### ACO Parameters
@@ -217,25 +193,6 @@ mvn exec:java
 
 ---
 
-## Academic Context
-
-This project implements research on Ant Colony Optimization applied to Constraint Satisfaction Problems, demonstrating:
-
-- Swarm intelligence principles in combinatorial optimization
-- Pheromone-based stigmergic coordination
-- Hybrid metaheuristics combining ACO with constraint propagation
-- MAX-MIN Ant System for preventing premature convergence
-
-### References
-
-The implementation is based on established ACO research:
-
-1. **Ant Colony Optimization for CSPs**: Solnon, C. "Ants can solve constraint satisfaction problems." IEEE Transactions on Evolutionary Computation (2002)
-2. **MAX-MIN Ant System**: Stützle, T., & Hoos, H. H. "MAX-MIN ant system." Future Generation Computer Systems (2000)
-3. **Variable Ordering Heuristics**: Haralick, R. M., & Elliott, G. L. "Increasing tree search efficiency for constraint satisfaction problems." Artificial Intelligence (1980)
-
----
-
 ## Authors & Contributors
 
 **Primary Authors:**
@@ -250,23 +207,6 @@ The implementation is based on established ACO research:
 ## License
 
 This project is part of academic work at IMT. Educational and research use permitted.
-
----
-
-## Acknowledgments
-
-Special thanks to the ant colony optimization research community for developing the theoretical foundations implemented in this project, and to the constraint satisfaction problem research community for variable ordering and constraint propagation techniques.
-
----
-
-## Project Statistics
-
-- **Language**: Java 21
-- **Lines of Code**: ~1,480
-- **Build Tool**: Maven 3.x
-- **Architecture**: Domain-Driven Design with Strategy patterns
-- **Performance**: Production-grade (optimized for speed and memory efficiency)
-- **Code Quality**: Clean architecture, SOLID principles, comprehensive logging
 
 ---
 
