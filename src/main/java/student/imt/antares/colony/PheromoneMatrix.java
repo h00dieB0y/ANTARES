@@ -14,71 +14,82 @@ import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
 
 /**
- * Immutable pheromone matrix tracking trail strengths for variable-value pairs.
+ * Mutable pheromone matrix tracking trail strengths for variable-value pairs.
  * Used in ant colony optimization to guide search toward promising solutions.
+ *
+ * Performance: Uses flat double array for cache efficiency and in-place mutations.
  */
 public final class PheromoneMatrix {
     private static final Logger logger = LoggerFactory.getLogger(PheromoneMatrix.class);
 
-    private final Map<Trail<?>, Double> trails;
+    private final double[] pheromones;
+    private final Map<Trail<?>, Integer> trailToIndex;
 
-    private PheromoneMatrix(Map<Trail<?>, Double> trails) {
-        this.trails = Map.copyOf(trails);
+    private PheromoneMatrix(double[] pheromones, Map<Trail<?>, Integer> trailToIndex) {
+        this.pheromones = pheromones;
+        this.trailToIndex = trailToIndex;
     }
 
     public static PheromoneMatrix initialize(Problem problem, double initialPheromone) {
         validatePositive(initialPheromone, "Initial pheromone");
 
-        Map<Trail<?>, Double> initialTrails = new HashMap<>();
+        Map<Trail<?>, Integer> indexMap = new HashMap<>();
+        int index = 0;
+
         for (Variable<?> var : problem.getVariables()) {
-            addTrailsForVariable(var, initialTrails, initialPheromone);
+            index = addTrailsForVariable(var, indexMap, index);
+        }
+
+        double[] pheromones = new double[index];
+        for (int i = 0; i < pheromones.length; i++) {
+            pheromones[i] = initialPheromone;
         }
 
         logger.info("Initialized pheromone matrix: {} trails with value {}",
-                   initialTrails.size(), initialPheromone);
+                   pheromones.length, initialPheromone);
 
-        return new PheromoneMatrix(initialTrails);
+        return new PheromoneMatrix(pheromones, indexMap);
     }
 
-    private static <T> void addTrailsForVariable(Variable<T> var, Map<Trail<?>, Double> trails, double amount) {
+    private static <T> int addTrailsForVariable(Variable<T> var, Map<Trail<?>, Integer> indexMap, int startIndex) {
+        int index = startIndex;
         for (T value : var.domain()) {
-            trails.put(new Trail<>(var, value), amount);
+            indexMap.put(new Trail<>(var, value), index++);
         }
+        return index;
     }
 
     public <T> double getAmount(Variable<T> variable, T value) {
         Trail<T> trail = new Trail<>(variable, value);
-        return trails.getOrDefault(trail, 0.0);
+        Integer index = trailToIndex.get(trail);
+        return index != null ? pheromones[index] : 0.0;
     }
 
     public PheromoneMatrix evaporate(double evaporationRate) {
         validateRange(evaporationRate, "Evaporation rate");
 
-        Map<Trail<?>, Double> newTrails = new HashMap<>();
-        for (Map.Entry<Trail<?>, Double> entry : trails.entrySet()) {
-            newTrails.put(entry.getKey(), entry.getValue() * (1 - evaporationRate));
+        double factor = 1.0 - evaporationRate;
+        for (int i = 0; i < pheromones.length; i++) {
+            pheromones[i] *= factor;
         }
-        return new PheromoneMatrix(newTrails);
+        return this;
     }
 
     public PheromoneMatrix deposit(Assignment assignment, double amount) {
         validatePositive(amount, "Deposit amount");
 
-        Map<Trail<?>, Double> newTrails = new HashMap<>(trails);
-        depositOnTrails(newTrails, assignment, amount);
-        return new PheromoneMatrix(newTrails);
+        depositOnTrails(assignment, amount);
+        return this;
     }
 
     public PheromoneMatrix depositMultiple(List<Assignment> assignments, Function<Assignment, Double> amountFunction) {
-        Map<Trail<?>, Double> newTrails = new HashMap<>(trails);
-
         for (Assignment assignment : assignments) {
             double amount = amountFunction.apply(assignment);
             validatePositive(amount, "Deposit amount");
-            depositOnTrails(newTrails, assignment, amount);
+            depositOnTrails(assignment, amount);
         }
 
-        return new PheromoneMatrix(newTrails);
+        return this;
     }
 
     public PheromoneMatrix clamp(double minPheromone, double maxPheromone) {
@@ -87,26 +98,26 @@ public final class PheromoneMatrix {
                 "Invalid bounds: min=" + minPheromone + ", max=" + maxPheromone);
         }
 
-        Map<Trail<?>, Double> clampedTrails = new HashMap<>();
-        for (Map.Entry<Trail<?>, Double> entry : trails.entrySet()) {
-            double clamped = Math.min(maxPheromone, Math.max(minPheromone, entry.getValue()));
-            clampedTrails.put(entry.getKey(), clamped);
+        for (int i = 0; i < pheromones.length; i++) {
+            pheromones[i] = Math.min(maxPheromone, Math.max(minPheromone, pheromones[i]));
         }
 
-        return new PheromoneMatrix(clampedTrails);
+        return this;
     }
 
-    private void depositOnTrails(Map<Trail<?>, Double> trails, Assignment assignment, double amount) {
+    private void depositOnTrails(Assignment assignment, double amount) {
         for (Variable<?> var : assignment.getAssignedVariables()) {
-            depositForVariable(var, trails, assignment, amount);
+            depositForVariable(var, assignment, amount);
         }
     }
 
-    private <T> void depositForVariable(Variable<T> var, Map<Trail<?>, Double> trails,
-                                        Assignment assignment, double amount) {
+    private <T> void depositForVariable(Variable<T> var, Assignment assignment, double amount) {
         assignment.getValue(var).ifPresent(value -> {
             Trail<T> trail = new Trail<>(var, value);
-            trails.merge(trail, amount, Double::sum);
+            Integer index = trailToIndex.get(trail);
+            if (index != null) {
+                pheromones[index] += amount;
+            }
         });
     }
 
@@ -127,17 +138,18 @@ public final class PheromoneMatrix {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         PheromoneMatrix that = (PheromoneMatrix) obj;
-        return trails.equals(that.trails);
+        return java.util.Arrays.equals(pheromones, that.pheromones) &&
+               trailToIndex.equals(that.trailToIndex);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(trails);
+        return Objects.hash(java.util.Arrays.hashCode(pheromones), trailToIndex);
     }
 
     @Override
     public String toString() {
-        return "PheromoneMatrix{" + trails + "}";
+        return "PheromoneMatrix{" + pheromones.length + " trails}";
     }
 
     private static record Trail<T>(Variable<T> var, T value) {
