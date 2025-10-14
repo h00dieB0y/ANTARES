@@ -12,26 +12,30 @@ public record ACOParameters(
         int numberOfAnts) {
 
     public ACOParameters {
-        if (alpha < 0) {
-            throw new IllegalArgumentException("Alpha must be non-negative");
-        }
-        if (beta < 0) {
-            throw new IllegalArgumentException("Beta must be non-negative");
+        if (alpha < 0 || beta < 0 ) {
+            throw new IllegalArgumentException(
+                    "Both alpha and beta must be positive ! (alpha = " + alpha + ", beta = " + beta + ")"
+            );
         }
         if (rho < 0 || rho > 1) {
-            throw new IllegalArgumentException("Rho must be in [0, 1]");
+            throw new IllegalArgumentException(
+                    "Rho must be in [0, 1]"
+            );
         }
-        if (tauMin <= 0) {
-            throw new IllegalArgumentException("TauMin must be positive");
-        }
-        if (tauMax <= 0) {
-            throw new IllegalArgumentException("TauMax must be positive");
+        if (tauMin <= 0 || tauMax <= 0) {
+            throw new IllegalArgumentException(
+                    "Both tauMin and tauMax must be greater than 0 ! (tauMin = " + tauMin + ", tauMax = " + tauMax + ")"
+            );
         }
         if (tauMin >= tauMax) {
-            throw new IllegalArgumentException("TauMin must be less than TauMax");
+            throw new IllegalArgumentException(
+                    "TauMin must be less than TauMax"
+            );
         }
         if (numberOfAnts <= 0) {
-            throw new IllegalArgumentException("Number of ants must be positive");
+            throw new IllegalArgumentException(
+                    "Number of ants must be positive"
+            );
         }
     }
 
