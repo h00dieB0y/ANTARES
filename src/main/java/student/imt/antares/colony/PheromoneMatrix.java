@@ -14,7 +14,6 @@ import student.imt.antares.problem.Variable;
  * Mutable pheromone matrix tracking trail strengths for variable-value pairs.
  * Used in ant colony optimization to guide search toward promising solutions.
  *
- * Performance: Uses flat double array for cache efficiency and in-place mutations.
  */
 public final class PheromoneMatrix {
     private static final Logger logger = LoggerFactory.getLogger(PheromoneMatrix.class);
