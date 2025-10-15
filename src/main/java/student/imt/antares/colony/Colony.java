@@ -74,11 +74,6 @@ public class Colony {
                            cycle, cycleBest.size(), problem.size());
                 return cycleBest;
             }
-
-            if ((cycle + 1) % 10 == 0 || cycle == 0) {
-                logger.info("Cycle {}/{} - Best: {}/{} variables",
-                           cycle + 1, maxCycles, bestAssignment.size(), problem.size());
-            }
         }
 
         logger.warn("Max cycles reached without complete solution. Best: {}/{} variables",
