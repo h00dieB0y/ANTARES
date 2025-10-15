@@ -80,7 +80,6 @@ antares/
 
 - **Java**: 21 or higher
 - **Maven**: 3.x
-- **Memory**: Minimum 512MB heap (recommended: 1GB for large problems)
 
 ---
 
