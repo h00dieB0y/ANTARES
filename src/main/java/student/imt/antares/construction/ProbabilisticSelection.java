@@ -10,6 +10,20 @@ import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.PheromoneMatrix;
 import student.imt.antares.problem.Variable;
 
+/**
+ * Probabilistic value selection strategy using pheromone-weighted roulette wheel.
+ * <p>
+ * Selects values based on the ACO probability formula:
+ * P(value) ∝ τ^α * η^β, where τ is pheromone level and η is heuristic information.
+ * </p>
+ * <p>
+ * This implementation uses uniform heuristic (η = 1.0) as CSP problems typically
+ * lack domain-specific value-ordering heuristics. Selection is proportional to
+ * pheromone strength alone when beta = 0.
+ * </p>
+ *
+ * @since 1.0
+ */
 public class ProbabilisticSelection implements ValueSelector {
     
     private final Random random;
@@ -47,7 +61,7 @@ public class ProbabilisticSelection implements ValueSelector {
         double sum = domain.stream()
                 .mapToDouble(value -> {
                     double tau = pheromones.getAmount(variable, value);
-                    double eta = 1.0; // Assuming uniform heuristic information
+                    double eta = 1.0;
                     return Math.pow(tau, alpha) * Math.pow(eta, beta);
                 })
                 .sum();
@@ -57,7 +71,7 @@ public class ProbabilisticSelection implements ValueSelector {
                     value -> value,
                     value -> {
                         double tau = pheromones.getAmount(variable, value);
-                        double eta = 1.0; // Assuming uniform heuristic information
+                        double eta = 1.0;
                         return (Math.pow(tau, alpha) * Math.pow(eta, beta)) / sum;
                     }
                 ));

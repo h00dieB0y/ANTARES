@@ -69,14 +69,13 @@ public class SudokuTest {
     }
 
     private static Assignment solveWithACO(Problem problem, int maxCycles) {
-        // Setup ACO parameters tuned for Sudoku
         ACOParameters params = new ACOParameters(
-            2.0,    // alpha: pheromone importance
-            0,    // beta: heuristic importance
-            0.01,   // rho: evaporation rate
-            0.01,   // tauMin
-            10.0,   // tauMax
-            30      // numberOfAnts
+            2.0,
+            0,
+            0.01,
+            0.01,
+            10.0,
+            30
         );
 
         Colony colony = Colony.create(problem, params);

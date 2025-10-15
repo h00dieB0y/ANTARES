@@ -44,11 +44,9 @@ public class SudokuProblem {
                 var value = assignment.getValue(var);
 
                 if (value.isEmpty()) {
-                    // Unassigned variables don't violate constraint yet
                     continue;
                 }
 
-                // Check for duplicate
                 if (assignedValues.contains(value.get())) {
                     return false;
                 }
@@ -79,22 +77,15 @@ public class SudokuProblem {
     public static Problem create(int[][] initialGrid) {
         validateGrid(initialGrid);
 
-        // Create variables: one per cell
         Variable<Integer>[][] cells = new Variable[9][9];
         List<Variable<?>> allVariables = new ArrayList<>();
 
         for (int row = 0; row < 9; row++) {
             for (int col = 0; col < 9; col++) {
                 int given = initialGrid[row][col];
-                Set<Integer> domain;
-
-                if (given != 0) {
-                    // Given value: single value domain
-                    domain = Set.of(given);
-                } else {
-                    // Empty cell: all values possible
-                    domain = Set.of(1, 2, 3, 4, 5, 6, 7, 8, 9);
-                }
+                Set<Integer> domain = (given != 0)
+                        ? Set.of(given)
+                        : Set.of(1, 2, 3, 4, 5, 6, 7, 8, 9);
 
                 String cellName = "R" + row + "C" + col;
                 cells[row][col] = new Variable<>(cellName, domain);
@@ -102,10 +93,8 @@ public class SudokuProblem {
             }
         }
 
-        // Create constraints
         List<Constraint> constraints = new ArrayList<>();
 
-        // Row constraints
         for (int row = 0; row < 9; row++) {
             Set<Variable<Integer>> rowVars = new HashSet<>();
             for (int col = 0; col < 9; col++) {
@@ -114,7 +103,6 @@ public class SudokuProblem {
             constraints.add(new AllDifferentConstraint(rowVars, "Row" + row));
         }
 
-        // Column constraints
         for (int col = 0; col < 9; col++) {
             Set<Variable<Integer>> colVars = new HashSet<>();
             for (int row = 0; row < 9; row++) {
@@ -123,7 +111,6 @@ public class SudokuProblem {
             constraints.add(new AllDifferentConstraint(colVars, "Col" + col));
         }
 
-        // Box constraints (3x3)
         for (int boxRow = 0; boxRow < 3; boxRow++) {
             for (int boxCol = 0; boxCol < 3; boxCol++) {
                 Set<Variable<Integer>> boxVars = new HashSet<>();

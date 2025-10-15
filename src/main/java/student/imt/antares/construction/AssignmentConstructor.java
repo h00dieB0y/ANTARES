@@ -48,7 +48,7 @@ public class AssignmentConstructor {
                 return assignment;
             }
 
-            logger.trace("Step {}: Selected variable {}", step, nextVariable.get().name());
+                logger.trace("Step {}: Selected variable {}", step, nextVariable.get().name());
 
             assignment = processVariable(nextVariable.get(), assignment, pheromones,
                                         parameters, valueSelector, solver);
@@ -97,13 +97,17 @@ public class AssignmentConstructor {
             return newAssignment;
         }
 
-        // Auto-assign singleton variables after propagation (Ant-CP algorithm line 9)
         return assignSingletons(newAssignment, solver);
     }
 
     /**
      * Automatically assigns all singleton variables (variables with domain size 1)
-     * after constraint propagation, as specified in Ant-CP algorithm.
+     * after constraint propagation.
+     * <p>
+     * Implements Ant-CP algorithm line 9. Singleton assignment is deterministic
+     * and doesn't require ant guidance, so it's performed immediately to reduce
+     * the search space.
+     * </p>
      */
     private Assignment assignSingletons(Assignment assignment, CSPSolver solver) {
         Assignment current = assignment;
@@ -111,19 +115,17 @@ public class AssignmentConstructor {
         while (true) {
             var singletons = solver.getSingletonVariables();
 
-            // Filter out already assigned singletons
             final Assignment currentAssignmentForFilter = current;
             var unassignedSingletons = singletons.stream()
                     .filter(variable -> !currentAssignmentForFilter.isAssigned(variable))
                     .toList();
 
             if (unassignedSingletons.isEmpty()) {
-                break; // No more singletons to assign
+                break;
             }
 
             logger.trace("Auto-assigning {} singleton variables", unassignedSingletons.size());
 
-            // Assign each singleton
             for (Variable<?> singletonVar : unassignedSingletons) {
                 current = assignSingleton(singletonVar, current, solver);
 

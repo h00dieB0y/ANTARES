@@ -1,7 +1,24 @@
 package student.imt.antares.colony;
 
 /**
- * ACO algorithm parameters for pheromone update and ant behavior.
+ * Configuration parameters for the Ant Colony Optimization (ACO) algorithm.
+ * <p>
+ * These parameters control pheromone influence, heuristic weighting,
+ * evaporation rate, and pheromone bounds following the MAX-MIN Ant System (MMAS) approach.
+ * </p>
+ *
+ * @param alpha pheromone importance weight (≥ 0). Higher values increase exploitation
+ *              of existing pheromone trails. Typical range: [1.0, 5.0]
+ * @param beta heuristic information importance weight (≥ 0). Higher values increase
+ *             exploitation of problem-specific heuristics. Use 0.0 when no heuristic available
+ * @param rho pheromone evaporation rate [0, 1]. Fraction of pheromone that evaporates
+ *            each cycle. Low values (0.01-0.1) provide more exploration. Standard: 0.01 for CSP
+ * @param tauMin minimum pheromone bound (> 0). Prevents starvation of trails
+ * @param tauMax maximum pheromone bound (> tauMin). Prevents premature convergence
+ * @param numberOfAnts size of the ant colony (> 0). More ants increase diversity but
+ *                     require more computation per cycle
+ *
+ * @since 1.0
  */
 public record ACOParameters(
         double alpha,
@@ -39,14 +56,23 @@ public record ACOParameters(
         }
     }
 
+    /**
+     * Creates ACOParameters with research-validated defaults for CSP solving.
+     * <p>
+     * These defaults prioritize pheromone guidance with slow evaporation,
+     * suitable for constraint satisfaction problems without domain-specific heuristics.
+     * </p>
+     *
+     * @return default parameter configuration
+     */
     public static ACOParameters withDefaults() {
         return new ACOParameters(
-                2.0,  // alpha - strong pheromone importance
-                0.0,  // beta - no heuristic
-                0.01, // rho - slow evaporation (1%)
-                0.01, // tauMin - minimum bound
-                10.0, // tauMax - maximum bound
-                30    // numberOfAnts - standard colony size
+                2.0,
+                0.0,
+                0.01,
+                0.01,
+                10.0,
+                30
         );
     }
 

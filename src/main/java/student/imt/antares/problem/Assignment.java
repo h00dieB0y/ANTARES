@@ -10,27 +10,6 @@ import java.util.Set;
  * Mutable mapping from variables to their assigned values.
  * Supports partial assignments during search and complete solutions.
  *
- * <h2>Performance Design</h2>
- * Mutates in-place to avoid allocations during search. Use {@link #snapshot()}
- * when storing assignments that must remain independent.
- *
- * <h2>Type Safety Design</h2>
- * Internally uses {@code Map<Variable<?>, Object>} which loses the type correlation
- * between {@code Variable<T>} and its value of type {@code T}. This design trade-off:
- * <ul>
- *   <li><b>Allows</b> heterogeneous variables (Integer, String, etc.) in one assignment</li>
- *   <li><b>Maintains</b> type safety at the public API level via generic methods</li>
- *   <li><b>Requires</b> unchecked cast in {@link #getValue(Variable)} (safe due to API constraints)</li>
- *   <li><b>Avoids</b> complex type token patterns that would add significant overhead</li>
- * </ul>
- *
- * <h3>Why the unchecked cast is safe:</h3>
- * The only way to insert values is via {@link #assign(Variable, Object)} which enforces
- * that a {@code Variable<T>} can only be assigned a value of type {@code T}. Therefore,
- * when retrieving via {@link #getValue(Variable)}, the cast to {@code T} is guaranteed
- * to succeed (assuming no external mutation of the internal map, which is prevented by
- * encapsulation).
- *
  * @see Variable
  */
 public final class Assignment {

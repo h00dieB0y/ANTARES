@@ -19,22 +19,6 @@ import student.imt.antares.problem.Variable;
  * Basic CSP solver with forward checking and domain reduction.
  * Maintains current domains for each variable and propagates constraints.
  *
- * <h2>Type Safety Design</h2>
- * Internally uses {@code Map<Variable<?>, Set<?>>} which loses the type correlation
- * between {@code Variable<T>} and its domain of type {@code Set<T>}. This design:
- * <ul>
- *   <li><b>Allows</b> tracking domains for heterogeneous variables (Integer, String, etc.)</li>
- *   <li><b>Maintains</b> type safety at the public API via {@link #getCurrentDomain(Variable)}</li>
- *   <li><b>Requires</b> unchecked cast when retrieving domains (safe due to initialization)</li>
- * </ul>
- *
- * <h3>Why the unchecked cast is safe:</h3>
- * Domains are initialized in {@link #reset()} from {@code variable.domain()}, ensuring
- * that a {@code Variable<T>} is always mapped to a {@code Set<T>}. Domain reductions
- * in {@link #reduceDomain(Variable, Constraint, Assignment)} maintain this invariant
- * by filtering the existing domain. Therefore, the cast in {@link #getCurrentDomain(Variable)}
- * is guaranteed to be type-safe.
- *
  * @see CSPSolver
  * @see Assignment
  */
@@ -61,7 +45,6 @@ public class BasicCSPSolver implements CSPSolver {
         currentDomains.clear();
         failed = false;
 
-        // Initialize current domains with full domains
         for (Variable<?> var : problem.getVariables()) {
             currentDomains.put(var, Set.copyOf(var.domain()));
         }
@@ -76,14 +59,12 @@ public class BasicCSPSolver implements CSPSolver {
 
         logger.trace("Propagating assignment with {} variables", assignment.size());
 
-        // Check if assignment is consistent with constraints
         if (!problem.isConsistent(assignment)) {
             logger.debug("Assignment inconsistent with constraints");
             failed = true;
             return false;
         }
 
-        // Reduce domains based on constraints (forward checking)
         for (Constraint constraint : problem.getConstraints()) {
             if (!propagateConstraint(constraint, assignment)) {
                 logger.debug("Constraint propagation failed: {}", constraint);
@@ -133,12 +114,10 @@ public class BasicCSPSolver implements CSPSolver {
                 .filter(assignment::isAssigned)
                 .collect(Collectors.toSet());
 
-        // If all variables in constraint are assigned, just check satisfaction
         if (assignedVars.size() == involvedVars.size()) {
             return constraint.isSatisfiedBy(assignment);
         }
 
-        // Forward checking: reduce domains of unassigned variables
         for (Variable<?> var : involvedVars) {
             if (!assignment.isAssigned(var)) {
                 if (!reduceDomain(var, constraint, assignment)) {
@@ -150,11 +129,19 @@ public class BasicCSPSolver implements CSPSolver {
         return true;
     }
 
+    /**
+     * Reduces a variable's domain by filtering out values that violate a constraint.
+     * <p>
+     * Uses optimistic testing: temporarily assigns each value, checks satisfaction,
+     * then rolls back. This avoids creating snapshots for each test, significantly
+     * improving performance during forward checking.
+     * </p>
+     *
+     * @return {@code false} if domain becomes empty (wipeout detected), {@code true} otherwise
+     */
     private <T> boolean reduceDomain(Variable<T> variable, Constraint constraint, Assignment assignment) {
         Set<T> currentDomain = getCurrentDomain(variable);
 
-        // Filter out values that would violate the constraint
-        // Optimization: Test in-place and rollback instead of creating snapshots
         Set<T> newDomain = currentDomain.stream()
                 .filter(value -> {
                     assignment.assign(variable, value);
@@ -164,10 +151,8 @@ public class BasicCSPSolver implements CSPSolver {
                 })
                 .collect(Collectors.toSet());
 
-        // Update domain
         currentDomains.put(variable, newDomain);
 
-        // Domain wipeout = failure
         return !newDomain.isEmpty();
     }
 }
