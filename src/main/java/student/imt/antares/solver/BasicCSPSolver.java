@@ -18,11 +18,34 @@ import student.imt.antares.problem.Variable;
 /**
  * Basic CSP solver with forward checking and domain reduction.
  * Maintains current domains for each variable and propagates constraints.
+ *
+ * <h2>Type Safety Design</h2>
+ * Internally uses {@code Map<Variable<?>, Set<?>>} which loses the type correlation
+ * between {@code Variable<T>} and its domain of type {@code Set<T>}. This design:
+ * <ul>
+ *   <li><b>Allows</b> tracking domains for heterogeneous variables (Integer, String, etc.)</li>
+ *   <li><b>Maintains</b> type safety at the public API via {@link #getCurrentDomain(Variable)}</li>
+ *   <li><b>Requires</b> unchecked cast when retrieving domains (safe due to initialization)</li>
+ * </ul>
+ *
+ * <h3>Why the unchecked cast is safe:</h3>
+ * Domains are initialized in {@link #reset()} from {@code variable.domain()}, ensuring
+ * that a {@code Variable<T>} is always mapped to a {@code Set<T>}. Domain reductions
+ * in {@link #reduceDomain(Variable, Constraint, Assignment)} maintain this invariant
+ * by filtering the existing domain. Therefore, the cast in {@link #getCurrentDomain(Variable)}
+ * is guaranteed to be type-safe.
+ *
+ * @see CSPSolver
+ * @see Assignment
  */
 public class BasicCSPSolver implements CSPSolver {
     private static final Logger logger = LoggerFactory.getLogger(BasicCSPSolver.class);
 
     private final Problem problem;
+    /**
+     * Internal storage using wildcard types to allow heterogeneous variable domains.
+     * Type safety is maintained through the generic public API methods.
+     */
     private Map<Variable<?>, Set<?>> currentDomains;
     private boolean failed;
 
@@ -73,9 +96,20 @@ public class BasicCSPSolver implements CSPSolver {
         return true;
     }
 
+    /**
+     * Retrieves the current reduced domain for a variable after constraint propagation.
+     *
+     * @param variable the variable to look up
+     * @param <T> the type of the variable's domain values
+     * @return the current domain (may be reduced from original), or empty set if unknown
+     *
+     * @implNote Contains an unchecked cast from {@code Set<?>} to {@code Set<T>}, which is
+     * safe because {@link #reset()} initializes domains from {@code variable.domain()}, and
+     * {@link #reduceDomain(Variable, Constraint, Assignment)} maintains the type invariant.
+     */
     @Override
     public <T> Set<T> getCurrentDomain(Variable<T> variable) {
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings("unchecked") // Safe: reset() initializes Variable<T> -> Set<T> mapping
         Set<T> domain = (Set<T>) currentDomains.getOrDefault(variable, Set.of());
         return domain;
     }

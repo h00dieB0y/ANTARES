@@ -261,6 +261,10 @@ public class SudokuProblem {
             int col = Character.getNumericValue(name.charAt(3));
 
             assignment.getValue(var).ifPresent(value -> {
+                if (!(value instanceof Integer)) {
+                    throw new IllegalArgumentException(
+                        "Expected Integer value for Sudoku cell " + name + ", got: " + value.getClass().getSimpleName());
+                }
                 grid[row][col] = (Integer) value;
             });
         }

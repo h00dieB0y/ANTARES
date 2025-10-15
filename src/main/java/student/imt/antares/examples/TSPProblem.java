@@ -5,19 +5,25 @@ import student.imt.antares.problem.*;
 
 public class TSPProblem {
 
-    private record TourConstraint(List<Variable<Integer>> cities) implements Constraint {
-            private TourConstraint(List<Variable<Integer>> cities) {
+    private record TourConstraint(List<Variable<?>> cities) implements Constraint {
+            private TourConstraint(List<Variable<?>> cities) {
                 this.cities = Objects.requireNonNull(cities);
             }
 
         @Override
             public boolean isSatisfiedBy(Assignment assignment) {
-                Set<Integer> seen = new HashSet<>();
-                for (Variable<Integer> v : cities) {
+                Set<Object> seen = new HashSet<>();
+                for (Variable<?> v : cities) {
                     var val = assignment.getValue(v);
                     if (val.isEmpty()) continue;
-                    if (seen.contains(val.get())) return false;
-                    seen.add(val.get());
+                    Object value = val.get();
+                    // Validate that value is an Integer (position in tour)
+                    if (!(value instanceof Integer)) {
+                        throw new IllegalArgumentException(
+                            "TSP tour constraint expects Integer positions, got: " + value.getClass().getSimpleName());
+                    }
+                    if (seen.contains(value)) return false;
+                    seen.add(value);
                 }
                 return true;
             }
@@ -43,7 +49,7 @@ public class TSPProblem {
             variables.add(new Variable<>("City" + i, domain));
         }
         // One constraint: all positions in the tour are unique (each visited once)
-        Constraint allUnique = new TourConstraint((List)variables);
+        Constraint allUnique = new TourConstraint(variables);
         List<Constraint> constraints = List.of(allUnique);
         // You peux ajouter plus de contraintes selon besoins (Ex: boucle fermée)
         return new Problem(variables, constraints);
@@ -55,9 +61,15 @@ public class TSPProblem {
         for (Variable<?> var : assignment.getAssignedVariables()) {
             int city = Integer.parseInt(var.name().substring(4)); // "CityX"
             var value = assignment.getValue(var);
-            if( value.isEmpty() )
+            if (value.isEmpty()) {
                 throw new IllegalArgumentException("Assignment incomplete");
-            int pos = (int) value.get();
+            }
+            Object posValue = value.get();
+            if (!(posValue instanceof Integer)) {
+                throw new IllegalArgumentException(
+                    "Expected Integer position for variable " + var.name() + ", got: " + posValue.getClass().getSimpleName());
+            }
+            int pos = (Integer) posValue;
             tour[pos] = city;
         }
         double sum = 0;
@@ -73,7 +85,14 @@ public class TSPProblem {
         System.out.print("Tour: ");
         // Affichage ordre de passage
         assignment.getAssignedVariables().stream()
-            .sorted(Comparator.comparingInt(v -> (Integer)assignment.getValue(v).get()))
+            .sorted(Comparator.comparingInt(v -> {
+                Object value = assignment.getValue(v).orElseThrow();
+                if (!(value instanceof Integer)) {
+                    throw new IllegalArgumentException(
+                        "Expected Integer position for variable " + v.name() + ", got: " + value.getClass().getSimpleName());
+                }
+                return (Integer) value;
+            }))
             .forEach(v -> System.out.print(v.name() + " "));
         System.out.println();
     }
