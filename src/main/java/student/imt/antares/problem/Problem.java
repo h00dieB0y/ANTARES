@@ -4,15 +4,11 @@ import java.util.List;
 
 /**
  * Represents a Constraint Satisfaction Problem (CSP).
- * <p>
  * A CSP consists of a set of variables and constraints that must be satisfied.
  * This class acts as the aggregate root for the CSP domain model, providing
  * operations to validate partial and complete assignments.
- * </p>
- * <p>
  * Invariants: Must have at least one variable. Constraints list cannot be null
  * (but can be empty for unconstrained problems).
- * </p>
  *
  * @since 1.0
  */
@@ -50,11 +46,9 @@ public class Problem {
 
     /**
      * Checks if an assignment satisfies all applicable constraints.
-     * <p>
      * Only constraints whose involved variables are all assigned are evaluated.
      * Partial assignments are considered consistent if they don't violate
      * any fully-instantiated constraints.
-     * </p>
      *
      * @param assignment the assignment to validate
      * @return {@code true} if no constraints are violated, {@code false} otherwise
