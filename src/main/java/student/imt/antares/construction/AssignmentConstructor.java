@@ -11,7 +11,7 @@ import student.imt.antares.colony.PheromoneMatrix;
 import student.imt.antares.problem.Assignment;
 import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
-import student.imt.antares.solver.CSPSolver;
+import student.imt.antares.solver.BasicCSPSolver;
 
 /**
  * Constructs CSP assignments using ant colony optimization.
@@ -24,8 +24,8 @@ public class AssignmentConstructor {
                                 PheromoneMatrix pheromones,
                                 ACOParameters parameters,
                                 VariableSelector variableSelector,
-                                ValueSelector valueSelector,
-                                CSPSolver solver) {
+                                ProbabilisticSelection valueSelector,
+                                BasicCSPSolver solver) {
 
         Objects.requireNonNull(problem, "Problem cannot be null");
         Objects.requireNonNull(pheromones, "Pheromone matrix cannot be null");
@@ -34,7 +34,6 @@ public class AssignmentConstructor {
         Objects.requireNonNull(valueSelector, "Value selector cannot be null");
         Objects.requireNonNull(solver, "CSP solver cannot be null");
 
-        logger.trace("Starting assignment construction for problem size {}", problem.size());
 
         Assignment assignment = Assignment.empty();
         solver.reset(); // Reset solver state for this ant
@@ -48,7 +47,6 @@ public class AssignmentConstructor {
                 return assignment;
             }
 
-                logger.trace("Step {}: Selected variable {}", step, nextVariable.get().name());
 
             assignment = processVariable(nextVariable.get(), assignment, pheromones,
                                         parameters, valueSelector, solver);
@@ -66,34 +64,29 @@ public class AssignmentConstructor {
         return assignment;
     }
 
-    private <T> Assignment processVariable(Variable<T> variable,
+    private Assignment processVariable(Variable variable,
                                            Assignment assignment,
                                            PheromoneMatrix pheromones,
                                            ACOParameters parameters,
-                                           ValueSelector valueSelector,
-                                           CSPSolver solver) {
-        Set<T> domain = solver.getCurrentDomain(variable);
+                                           ProbabilisticSelection valueSelector,
+                                           BasicCSPSolver solver) {
+        Set<Integer> domain = solver.getCurrentDomain(variable);
 
-        logger.trace("Processing variable {} with domain size {}", variable.name(), domain.size());
 
         if (domain.isEmpty()) {
-            logger.trace("Domain empty for variable {}", variable.name());
             return assignment;
         }
 
         var selectedValue = valueSelector.select(variable, domain, pheromones, parameters);
 
         if (selectedValue.isEmpty()) {
-            logger.trace("No value selected for variable {}", variable.name());
             return assignment;
         }
 
-        logger.trace("Selected value {} for variable {}", selectedValue.get(), variable.name());
 
         Assignment newAssignment = assignment.assign(variable, selectedValue.get());
 
         if (!solver.propagate(newAssignment)) {
-            logger.trace("Propagation failed after assigning {} = {}", variable.name(), selectedValue.get());
             return newAssignment;
         }
 
@@ -109,7 +102,7 @@ public class AssignmentConstructor {
      * the search space.
      * </p>
      */
-    private Assignment assignSingletons(Assignment assignment, CSPSolver solver) {
+    private Assignment assignSingletons(Assignment assignment, BasicCSPSolver solver) {
         Assignment current = assignment;
 
         while (true) {
@@ -124,13 +117,11 @@ public class AssignmentConstructor {
                 break;
             }
 
-            logger.trace("Auto-assigning {} singleton variables", unassignedSingletons.size());
 
-            for (Variable<?> singletonVar : unassignedSingletons) {
+            for (Variable singletonVar : unassignedSingletons) {
                 current = assignSingleton(singletonVar, current, solver);
 
                 if (solver.hasFailed()) {
-                    logger.trace("Propagation failed during singleton assignment");
                     return current;
                 }
             }
@@ -142,16 +133,15 @@ public class AssignmentConstructor {
     /**
      * Assigns a single singleton variable to its only possible value.
      */
-    private <T> Assignment assignSingleton(Variable<T> variable, Assignment assignment, CSPSolver solver) {
-        Set<T> domain = solver.getCurrentDomain(variable);
+    private Assignment assignSingleton(Variable variable, Assignment assignment, BasicCSPSolver solver) {
+        Set<Integer> domain = solver.getCurrentDomain(variable);
 
         if (domain.size() != 1) {
             logger.warn("Variable {} is not a singleton (domain size: {})", variable.name(), domain.size());
             return assignment;
         }
 
-        T value = domain.iterator().next();
-        logger.trace("Auto-assigning singleton: {} = {}", variable.name(), value);
+        Integer value = domain.iterator().next();
 
         Assignment newAssignment = assignment.assign(variable, value);
         solver.propagate(newAssignment);

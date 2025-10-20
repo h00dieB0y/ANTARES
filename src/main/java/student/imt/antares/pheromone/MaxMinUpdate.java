@@ -17,10 +17,9 @@ import student.imt.antares.problem.Assignment;
  * are clamped to [τ_min, τ_max] to avoid premature convergence.
  * Implements Ant-CP algorithm line 11: update using all max-size assignments.
  */
-public class MaxMinUpdate implements PheromoneUpdater {
+public class MaxMinUpdate {
     private static final Logger logger = LoggerFactory.getLogger(MaxMinUpdate.class);
 
-    @Override
     public PheromoneMatrix update(PheromoneMatrix currentPheromones,
                                   List<Assignment> cycleAssignments,
                                   Assignment bestOverall,
@@ -31,22 +30,14 @@ public class MaxMinUpdate implements PheromoneUpdater {
         Objects.requireNonNull(bestOverall, "Best overall assignment cannot be null");
         Objects.requireNonNull(parameters, "ACO parameters cannot be null");
 
-        logger.debug("Updating pheromones: {} assignments in cycle, best overall: {} vars",
-                    cycleAssignments.size(), bestOverall.size());
-
         PheromoneMatrix afterEvaporation = currentPheromones.evaporate(parameters.rho());
-        logger.trace("Evaporation complete with rate {}", parameters.rho());
 
         // Find ALL assignments with maximum size (BestOfCycle as per Ant-CP algorithm)
         List<Assignment> bestOfCycle = findBestAssignments(cycleAssignments);
 
         if (bestOfCycle.isEmpty()) {
-            logger.debug("No valid assignments in cycle - no deposit");
             return afterEvaporation.clamp(parameters.tauMin(), parameters.tauMax());
         }
-
-        logger.debug("BestOfCycle contains {} assignments with size {}",
-                    bestOfCycle.size(), bestOfCycle.get(0).size());
 
         // Deposit from ALL best assignments (their Δτ contributions are summed)
         PheromoneMatrix afterDeposit = afterEvaporation.depositMultiple(
@@ -54,7 +45,6 @@ public class MaxMinUpdate implements PheromoneUpdater {
             assignment -> calculateDepositAmount(assignment, bestOverall)
         );
 
-        logger.trace("Clamping pheromones to [{}, {}]", parameters.tauMin(), parameters.tauMax());
         return afterDeposit.clamp(parameters.tauMin(), parameters.tauMax());
     }
 
@@ -85,7 +75,6 @@ public class MaxMinUpdate implements PheromoneUpdater {
                 .filter(a -> a.size() == maxSize)
                 .collect(Collectors.toList());
 
-        logger.trace("Found {} assignments with max size {}", bestOnes.size(), maxSize);
         return bestOnes;
     }
 
@@ -109,7 +98,6 @@ public class MaxMinUpdate implements PheromoneUpdater {
         }
 
         double delta = 1.0 / (1.0 + gap);
-        logger.trace("Δτ = {:.4f} for assignment size {} (gap={})", delta, assignment.size(), gap);
         return delta;
     }
 }

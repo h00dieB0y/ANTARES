@@ -19,18 +19,13 @@ import student.imt.antares.problem.Variable;
  * Basic CSP solver with forward checking and domain reduction.
  * Maintains current domains for each variable and propagates constraints.
  *
- * @see CSPSolver
  * @see Assignment
  */
-public class BasicCSPSolver implements CSPSolver {
+public class BasicCSPSolver {
     private static final Logger logger = LoggerFactory.getLogger(BasicCSPSolver.class);
 
     private final Problem problem;
-    /**
-     * Internal storage using wildcard types to allow heterogeneous variable domains.
-     * Type safety is maintained through the generic public API methods.
-     */
-    private Map<Variable<?>, Set<?>> currentDomains;
+    private Map<Variable, Set<Integer>> currentDomains;
     private boolean failed;
 
     public BasicCSPSolver(Problem problem) {
@@ -40,24 +35,20 @@ public class BasicCSPSolver implements CSPSolver {
         reset();
     }
 
-    @Override
     public void reset() {
         currentDomains.clear();
         failed = false;
 
-        for (Variable<?> var : problem.getVariables()) {
+        for (Variable var : problem.getVariables()) {
             currentDomains.put(var, Set.copyOf(var.domain()));
         }
     }
 
-    @Override
     public boolean propagate(Assignment assignment) {
         if (failed) {
-            logger.trace("Propagation skipped - solver already failed");
             return false;
         }
 
-        logger.trace("Propagating assignment with {} variables", assignment.size());
 
         if (!problem.isConsistent(assignment)) {
             logger.debug("Assignment inconsistent with constraints");
@@ -73,7 +64,6 @@ public class BasicCSPSolver implements CSPSolver {
             }
         }
 
-        logger.trace("Propagation successful");
         return true;
     }
 
@@ -81,27 +71,17 @@ public class BasicCSPSolver implements CSPSolver {
      * Retrieves the current reduced domain for a variable after constraint propagation.
      *
      * @param variable the variable to look up
-     * @param <T> the type of the variable's domain values
-     * @return the current domain (may be reduced from original), or empty set if unknown
-     *
-     * @implNote Contains an unchecked cast from {@code Set<?>} to {@code Set<T>}, which is
-     * safe because {@link #reset()} initializes domains from {@code variable.domain()}, and
-     * {@link #reduceDomain(Variable, Constraint, Assignment)} maintains the type invariant.
+     * @return the current integer domain (may be reduced from original), or empty set if unknown
      */
-    @Override
-    public <T> Set<T> getCurrentDomain(Variable<T> variable) {
-        @SuppressWarnings("unchecked") // Safe: reset() initializes Variable<T> -> Set<T> mapping
-        Set<T> domain = (Set<T>) currentDomains.getOrDefault(variable, Set.of());
-        return domain;
+    public Set<Integer> getCurrentDomain(Variable variable) {
+        return currentDomains.getOrDefault(variable, Set.of());
     }
 
-    @Override
     public boolean hasFailed() {
         return failed;
     }
 
-    @Override
-    public List<Variable<?>> getSingletonVariables() {
+    public List<Variable> getSingletonVariables() {
         return currentDomains.entrySet().stream()
                 .filter(entry -> entry.getValue().size() == 1)
                 .map(Map.Entry::getKey)
@@ -109,8 +89,8 @@ public class BasicCSPSolver implements CSPSolver {
     }
 
     private boolean propagateConstraint(Constraint constraint, Assignment assignment) {
-        Set<Variable<?>> involvedVars = constraint.getInvolvedVariables();
-        Set<Variable<?>> assignedVars = involvedVars.stream()
+        Set<Variable> involvedVars = constraint.getInvolvedVariables();
+        Set<Variable> assignedVars = involvedVars.stream()
                 .filter(assignment::isAssigned)
                 .collect(Collectors.toSet());
 
@@ -118,7 +98,7 @@ public class BasicCSPSolver implements CSPSolver {
             return constraint.isSatisfiedBy(assignment);
         }
 
-        for (Variable<?> var : involvedVars) {
+        for (Variable var : involvedVars) {
             if (!assignment.isAssigned(var)) {
                 if (!reduceDomain(var, constraint, assignment)) {
                     return false;
@@ -132,20 +112,27 @@ public class BasicCSPSolver implements CSPSolver {
     /**
      * Reduces a variable's domain by filtering out values that violate a constraint.
      * <p>
-     * Uses optimistic testing: temporarily assigns each value, checks satisfaction,
-     * then rolls back. This avoids creating snapshots for each test, significantly
-     * improving performance during forward checking.
+     * <strong>Mutation Strategy:</strong> Uses a test-and-revert pattern for performance:
+     * temporarily assigns each candidate value to the (mutable) assignment, checks constraint
+     * satisfaction, then immediately removes the assignment. This avoids creating defensive
+     * snapshots for each value test, significantly improving performance during forward checking.
+     * </p>
+     * <p>
+     * The assignment is guaranteed to be in its original state after this method returns,
+     * as each {@code assign()} is paired with {@code unassign()} within the lambda.
      * </p>
      *
      * @return {@code false} if domain becomes empty (wipeout detected), {@code true} otherwise
      */
-    private <T> boolean reduceDomain(Variable<T> variable, Constraint constraint, Assignment assignment) {
-        Set<T> currentDomain = getCurrentDomain(variable);
+    private boolean reduceDomain(Variable variable, Constraint constraint, Assignment assignment) {
+        Set<Integer> currentDomain = getCurrentDomain(variable);
 
-        Set<T> newDomain = currentDomain.stream()
+        Set<Integer> newDomain = currentDomain.stream()
                 .filter(value -> {
+                    // Temporarily mutate assignment to test this value
                     assignment.assign(variable, value);
                     boolean satisfied = constraint.isSatisfiedBy(assignment);
+                    // Immediately revert mutation
                     assignment.unassign(variable);
                     return satisfied;
                 })
