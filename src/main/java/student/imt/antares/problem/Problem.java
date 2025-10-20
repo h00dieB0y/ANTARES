@@ -17,10 +17,10 @@ import java.util.List;
  * @since 1.0
  */
 public class Problem {
-    private final List<Variable<?>> variables;
+    private final List<Variable> variables;
     private final List<Constraint> constraints;
 
-    public Problem(List<Variable<?>> variables, List<Constraint> constraints) {
+    public Problem(List<Variable> variables, List<Constraint> constraints) {
         if (variables == null || variables.isEmpty()) {
             throw new IllegalArgumentException("Problem must have at least one variable");
         }
@@ -31,7 +31,7 @@ public class Problem {
         this.constraints = List.copyOf(constraints);
     }
 
-    public List<Variable<?>> getVariables() {
+    public List<Variable> getVariables() {
         return variables;
     }
 

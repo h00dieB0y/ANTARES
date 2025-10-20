@@ -5,9 +5,9 @@ import java.util.Optional;
 import student.imt.antares.problem.Assignment;
 import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
-import student.imt.antares.solver.CSPSolver;
+import student.imt.antares.solver.BasicCSPSolver;
 
 @FunctionalInterface
 public interface VariableSelector {
-    Optional<Variable<?>> selectNext(Problem problem, Assignment assignment, CSPSolver solver);
+    Optional<Variable> selectNext(Problem problem, Assignment assignment, BasicCSPSolver solver);
 }
