@@ -5,15 +5,15 @@ import student.imt.antares.problem.*;
 
 public class TSPProblem {
 
-    private record TourConstraint(List<Variable<?>> cities) implements Constraint {
-            private TourConstraint(List<Variable<?>> cities) {
+    private record TourConstraint(List<Variable> cities) implements Constraint {
+            private TourConstraint(List<Variable> cities) {
                 this.cities = Objects.requireNonNull(cities);
             }
 
         @Override
             public boolean isSatisfiedBy(Assignment assignment) {
                 Set<Object> seen = new HashSet<>();
-                for (Variable<?> v : cities) {
+                for (Variable v : cities) {
                     var val = assignment.getValue(v);
                     if (val.isEmpty()) continue;
                     Object value = val.get();
@@ -28,7 +28,7 @@ public class TSPProblem {
             }
 
         @Override
-            public Set<Variable<?>> getInvolvedVariables() {
+            public Set<Variable> getInvolvedVariables() {
                 return new HashSet<>(cities);
             }
 
@@ -40,11 +40,11 @@ public class TSPProblem {
 
     public static Problem create(double[][] distances) {
         int n = distances.length;
-        List<Variable<?>> variables = new ArrayList<>();
+        List<Variable> variables = new ArrayList<>();
         for (int i = 0; i < n; i++) {
             Set<Integer> domain = new HashSet<>();
             for (int pos = 0; pos < n; pos++) domain.add(pos);
-            variables.add(new Variable<>("City" + i, domain));
+            variables.add(new Variable("City" + i, domain));
         }
         Constraint allUnique = new TourConstraint(variables);
         List<Constraint> constraints = List.of(allUnique);
@@ -54,18 +54,13 @@ public class TSPProblem {
     public static double tourLength(double[][] distances, Assignment assignment) {
         int n = distances.length;
         int[] tour = new int[n];
-        for (Variable<?> var : assignment.getAssignedVariables()) {
+        for (Variable var : assignment.getAssignedVariables()) {
             int city = Integer.parseInt(var.name().substring(4));
             var value = assignment.getValue(var);
             if (value.isEmpty()) {
                 throw new IllegalArgumentException("Assignment incomplete");
             }
-            Object posValue = value.get();
-            if (!(posValue instanceof Integer)) {
-                throw new IllegalArgumentException(
-                    "Expected Integer position for variable " + var.name() + ", got: " + posValue.getClass().getSimpleName());
-            }
-            int pos = (Integer) posValue;
+            int pos = value.get();
             tour[pos] = city;
         }
         double sum = 0;

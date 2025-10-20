@@ -21,9 +21,9 @@ public class VRPProblem {
         private final int vehicle;
         private final int maxLoad;
         private final int[] demands; // demande pour chaque client
-        private final List<Variable<Integer>> variables; // une par client
+        private final List<Variable> variables; // une par client
 
-        public CapacityConstraint(int vehicle, int maxLoad, int[] demands, List<Variable<Integer>> variables) {
+        public CapacityConstraint(int vehicle, int maxLoad, int[] demands, List<Variable> variables) {
             this.vehicle = vehicle;
             this.maxLoad = maxLoad;
             this.demands = demands;
@@ -41,19 +41,19 @@ public class VRPProblem {
             }
             return total <= maxLoad;
         }
-        @Override public Set<Variable<?>> getInvolvedVariables() { return new HashSet<>(variables); }
+        @Override public Set<Variable> getInvolvedVariables() { return new HashSet<>(variables); }
         @Override public String toString() { return "Veh" + vehicle + "-MaxCap(" + maxLoad + ")"; }
     }
 
     // Chaque client doit être affecté à un véhicule (contrainte d'affectation obligatoire)
     private static class MustServeConstraint implements Constraint {
-        private final Variable<Integer> clientVar;
-        public MustServeConstraint(Variable<Integer> clientVar) { this.clientVar = clientVar; }
+        private final Variable clientVar;
+        public MustServeConstraint(Variable clientVar) { this.clientVar = clientVar; }
         @Override
         public boolean isSatisfiedBy(Assignment assignment) {
             return assignment.getValue(clientVar).isPresent();
         }
-        @Override public Set<Variable<?>> getInvolvedVariables() { return Set.of(clientVar); }
+        @Override public Set<Variable> getInvolvedVariables() { return Set.of(clientVar); }
         @Override public String toString() { return "ClientServed(" + clientVar.name() + ")"; }
     }
 
@@ -63,20 +63,20 @@ public class VRPProblem {
         int nVehicles = vehicleCaps.length;
 
         // les variables = un choix de véhicule pour chaque client
-        List<Variable<?>> clientVars = new ArrayList<>();
+        List<Variable> clientVars = new ArrayList<>();
         for (int c = 1; c <= nClients; c++) { // clients = 1..n
             Set<Integer> domain = new HashSet<>();
             for (int v = 0; v < nVehicles; v++) domain.add(v);
-            clientVars.add(new Variable<>("Client" + c, domain));
+            clientVars.add(new Variable("Client" + c, domain));
         }
 
         // Contraintes : capacité pour chaque véhicule
         List<Constraint> constraints = new ArrayList<>();
         for (int v = 0; v < nVehicles; v++) {
-            constraints.add(new CapacityConstraint(v, vehicleCaps[v], demands, (List<Variable<Integer>>) (List<?>) clientVars));
+            constraints.add(new CapacityConstraint(v, vehicleCaps[v], demands, clientVars));
         }
         // Chaque client doit être affecté à un véhicule
-        for (Variable<?> var : clientVars) constraints.add(new MustServeConstraint((Variable<Integer>)var));
+        for (Variable var : clientVars) constraints.add(new MustServeConstraint(var));
 
         return new Problem(clientVars, constraints);
     }
@@ -86,9 +86,9 @@ public class VRPProblem {
         double sum = 0;
         for (int v = 0; v < nVehicles; v++) {
             List<Integer> route = new ArrayList<>();
-            for (Variable<?> var : assign.getAssignedVariables()) {
+            for (Variable var : assign.getAssignedVariables()) {
                 int cli = Integer.parseInt(var.name().substring(6)); // "ClientX"
-                Optional<Integer> vehicleOpt = (Optional<Integer>) assign.getValue(var);
+                Optional<Integer> vehicleOpt = assign.getValue(var);
                 if (vehicleOpt.isPresent() && vehicleOpt.get() == v) {
                     route.add(cli);
                 }

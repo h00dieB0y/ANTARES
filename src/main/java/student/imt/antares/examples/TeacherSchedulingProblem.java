@@ -35,15 +35,15 @@ public class TeacherSchedulingProblem {
      * Creates the teacher scheduling CSP problem.
      */
     public static Problem create() {
-        List<Variable<?>> variables = new ArrayList<>();
-        Variable<Integer>[][] schedule = new Variable[ROOMS + 1][TIMES + 1];
+        List<Variable> variables = new ArrayList<>();
+        Variable[][] schedule = new Variable[ROOMS + 1][TIMES + 1];
 
         // Create variables for each (room, time) pair: P[room][time] = teacher
         for (int room = 1; room <= ROOMS; room++) {
             for (int time = 1; time <= TIMES; time++) {
                 Set<Integer> domain = getDomain(room, time);
                 String varName = "R" + room + "T" + time;
-                Variable<Integer> var = new Variable<>(varName, domain);
+                Variable var = new Variable(varName, domain);
                 schedule[room][time] = var;
                 variables.add(var);
             }
@@ -53,7 +53,7 @@ public class TeacherSchedulingProblem {
 
         // Constraint 1: One teacher cannot teach in two rooms at same time (alldifferent per time)
         for (int time = 1; time <= TIMES; time++) {
-            List<Variable<Integer>> roomsAtTime = new ArrayList<>();
+            List<Variable> roomsAtTime = new ArrayList<>();
             for (int room = 1; room <= ROOMS; room++) {
                 roomsAtTime.add(schedule[room][time]);
             }
@@ -70,14 +70,14 @@ public class TeacherSchedulingProblem {
         }
 
         // Constraint 4: Teacher C must teach in room 2 at least once
-        List<Variable<Integer>> room2Slots = new ArrayList<>();
+        List<Variable> room2Slots = new ArrayList<>();
         for (int time = 1; time <= TIMES; time++) {
             room2Slots.add(schedule[2][time]);
         }
         constraints.add(new AtLeastOnceConstraint(room2Slots, TEACHER_C, "Teacher C in Room 2 at least once"));
 
         // Constraint 5: Each teacher teaches exactly twice
-        List<Variable<Integer>> allSlots = new ArrayList<>();
+        List<Variable> allSlots = new ArrayList<>();
         for (int room = 1; room <= ROOMS; room++) {
             for (int time = 1; time <= TIMES; time++) {
                 allSlots.add(schedule[room][time]);
@@ -114,11 +114,11 @@ public class TeacherSchedulingProblem {
      * Constraint: Variable must have a specific fixed value.
      */
     private static class FixedAssignmentConstraint implements Constraint {
-        private final Variable<Integer> var;
+        private final Variable var;
         private final int value;
         private final String name;
 
-        public FixedAssignmentConstraint(Variable<Integer> var, int value, String name) {
+        public FixedAssignmentConstraint(Variable var, int value, String name) {
             this.var = var;
             this.value = value;
             this.name = name;
@@ -130,7 +130,7 @@ public class TeacherSchedulingProblem {
         }
 
         @Override
-        public Set<Variable<?>> getInvolvedVariables() {
+        public Set<Variable> getInvolvedVariables() {
             return Set.of(var);
         }
 
@@ -144,11 +144,11 @@ public class TeacherSchedulingProblem {
      * Constraint: Variable cannot have a specific value.
      */
     private static class ForbiddenValueConstraint implements Constraint {
-        private final Variable<Integer> var;
+        private final Variable var;
         private final int forbiddenValue;
         private final String name;
 
-        public ForbiddenValueConstraint(Variable<Integer> var, int forbiddenValue, String name) {
+        public ForbiddenValueConstraint(Variable var, int forbiddenValue, String name) {
             this.var = var;
             this.forbiddenValue = forbiddenValue;
             this.name = name;
@@ -160,7 +160,7 @@ public class TeacherSchedulingProblem {
         }
 
         @Override
-        public Set<Variable<?>> getInvolvedVariables() {
+        public Set<Variable> getInvolvedVariables() {
             return Set.of(var);
         }
 
@@ -174,10 +174,10 @@ public class TeacherSchedulingProblem {
      * Constraint: All variables must have different values (alldifferent).
      */
     private static class AllDifferentConstraint implements Constraint {
-        private final List<Variable<Integer>> variables;
+        private final List<Variable> variables;
         private final String name;
 
-        public AllDifferentConstraint(List<Variable<Integer>> variables, String name) {
+        public AllDifferentConstraint(List<Variable> variables, String name) {
             this.variables = variables;
             this.name = name;
         }
@@ -186,7 +186,7 @@ public class TeacherSchedulingProblem {
         public boolean isSatisfiedBy(Assignment assignment) {
             Set<Integer> seenValues = new HashSet<>();
 
-            for (Variable<Integer> var : variables) {
+            for (Variable var : variables) {
                 Optional<Integer> value = assignment.getValue(var);
                 if (value.isPresent()) {
                     if (seenValues.contains(value.get())) {
@@ -200,7 +200,7 @@ public class TeacherSchedulingProblem {
         }
 
         @Override
-        public Set<Variable<?>> getInvolvedVariables() {
+        public Set<Variable> getInvolvedVariables() {
             return new HashSet<>(variables);
         }
 
@@ -214,11 +214,11 @@ public class TeacherSchedulingProblem {
      * Constraint: A specific value must appear at least once in the variables.
      */
     private static class AtLeastOnceConstraint implements Constraint {
-        private final List<Variable<Integer>> variables;
+        private final List<Variable> variables;
         private final int requiredValue;
         private final String name;
 
-        public AtLeastOnceConstraint(List<Variable<Integer>> variables, int requiredValue, String name) {
+        public AtLeastOnceConstraint(List<Variable> variables, int requiredValue, String name) {
             this.variables = variables;
             this.requiredValue = requiredValue;
             this.name = name;
@@ -229,7 +229,7 @@ public class TeacherSchedulingProblem {
             boolean allAssigned = true;
             boolean foundValue = false;
 
-            for (Variable<Integer> var : variables) {
+            for (Variable var : variables) {
                 Optional<Integer> value = assignment.getValue(var);
                 if (value.isEmpty()) {
                     allAssigned = false;
@@ -248,7 +248,7 @@ public class TeacherSchedulingProblem {
         }
 
         @Override
-        public Set<Variable<?>> getInvolvedVariables() {
+        public Set<Variable> getInvolvedVariables() {
             return new HashSet<>(variables);
         }
 
@@ -262,12 +262,12 @@ public class TeacherSchedulingProblem {
      * Constraint: Exact count of a specific value across all variables.
      */
     private static class ExactCountConstraint implements Constraint {
-        private final List<Variable<Integer>> variables;
+        private final List<Variable> variables;
         private final int targetValue;
         private final int requiredCount;
         private final String name;
 
-        public ExactCountConstraint(List<Variable<Integer>> variables, int targetValue,
+        public ExactCountConstraint(List<Variable> variables, int targetValue,
                                    int requiredCount, String name) {
             this.variables = variables;
             this.targetValue = targetValue;
@@ -280,7 +280,7 @@ public class TeacherSchedulingProblem {
             int count = 0;
             boolean allAssigned = true;
 
-            for (Variable<Integer> var : variables) {
+            for (Variable var : variables) {
                 Optional<Integer> value = assignment.getValue(var);
                 if (value.isEmpty()) {
                     allAssigned = false;
@@ -299,7 +299,7 @@ public class TeacherSchedulingProblem {
         }
 
         @Override
-        public Set<Variable<?>> getInvolvedVariables() {
+        public Set<Variable> getInvolvedVariables() {
             return new HashSet<>(variables);
         }
 
@@ -322,7 +322,7 @@ public class TeacherSchedulingProblem {
             System.out.printf("Room %d   ", room);
             for (int time = 1; time <= TIMES; time++) {
                 String varName = "R" + room + "T" + time;
-                Variable<Integer> var = findVariable(assignment, varName);
+                Variable var = findVariable(assignment, varName);
 
                 if (var != null) {
                     Optional<Integer> value = assignment.getValue(var);
@@ -341,11 +341,11 @@ public class TeacherSchedulingProblem {
         System.out.println("-------------------------------------");
     }
 
-    private static Variable<Integer> findVariable(Assignment assignment, String name) {
-        for (Variable<?> var : assignment.getAssignedVariables()) {
+    private static Variable findVariable(Assignment assignment, String name) {
+        for (Variable var : assignment.getAssignedVariables()) {
             if (var.name().equals(name)) {
                 @SuppressWarnings("unchecked")
-                Variable<Integer> intVar = (Variable<Integer>) var;
+                Variable intVar = (Variable) var;
                 return intVar;
             }
         }
@@ -385,7 +385,7 @@ public class TeacherSchedulingProblem {
         for (int room = 1; room <= ROOMS; room++) {
             for (int time = 1; time <= TIMES; time++) {
                 String varName = "R" + room + "T" + time;
-                Variable<Integer> var = findVariable(assignment, varName);
+                Variable var = findVariable(assignment, varName);
                 if (var != null) {
                     assignment.getValue(var).ifPresent(teacher -> teacherCounts[teacher]++);
                 }
