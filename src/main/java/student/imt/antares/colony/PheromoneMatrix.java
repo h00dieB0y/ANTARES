@@ -27,13 +27,13 @@ public final class PheromoneMatrix {
         this.trailToIndex = trailToIndex;
     }
 
-    public static PheromoneMatrix initialize(Problem problem, double initialPheromone) {
+    public static PheromoneMatrix initialize(List<Variable<?>> variables, double initialPheromone) {
         validatePositive(initialPheromone, "Initial pheromone");
 
         Map<Trail<?>, Integer> indexMap = new HashMap<>();
         int index = 0;
 
-        for (Variable<?> var : problem.getVariables()) {
+        for (Variable<?> var : variables) {
             index = addTrailsForVariable(var, indexMap, index);
         }
 
@@ -44,6 +44,10 @@ public final class PheromoneMatrix {
                    pheromones.length, initialPheromone);
 
         return new PheromoneMatrix(pheromones, indexMap);
+    }
+
+    public static PheromoneMatrix initialize(Problem problem, double initialPheromone) {
+        return initialize(problem.getVariables(), initialPheromone);
     }
 
     private static <T> int addTrailsForVariable(Variable<T> var, Map<Trail<?>, Integer> indexMap, int startIndex) {

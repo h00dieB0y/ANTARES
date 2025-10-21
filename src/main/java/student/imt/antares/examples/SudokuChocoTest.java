@@ -1,9 +1,14 @@
 package student.imt.antares.examples;
 
+import org.chocosolver.solver.Model;
+import org.chocosolver.solver.search.strategy.selectors.variables.AntiFirstFail;
+import org.chocosolver.solver.variables.IntVar;
 import student.imt.antares.colony.ACOParameters;
+import student.imt.antares.construction.ProbabilisticSelection;
 import student.imt.antares.problem.Assignment;
 import student.imt.antares.problem.Problem;
-import student.imt.antares.solver.ChocoCSPSolver;
+import student.imt.antares.problem.Variable;
+import student.imt.antares.solver.AntColonyMetaHeuristicSolver;
 
 /**
  * Test Sudoku solving with Choco Solver + ACO integration.
@@ -67,28 +72,48 @@ public class SudokuChocoTest {
     }
 
     private static Assignment solveWithChocoACO(Problem problem, int maxCycles) {
-        // Configure ACO parameters
-        ACOParameters params = new ACOParameters(
-            2.0,    // alpha - pheromone importance
-            0.0,    // beta - heuristic importance (0 for pure ACO)
-            0.01,   // rho - evaporation rate
-            0.01,   // tauMin - minimum pheromone
-            10.0,   // tauMax - maximum pheromone
-            30      // number of ants
+        // Configure AntColonyMetaHeuristicSolver parameters
+        ACOParameters acoParameters = ACOParameters.withDefaults();
+        Model model = new Model("Sudoku ACO Choco Solver");
+        IntVar[] chocoVars = new IntVar[problem.size()];
+
+        for (int i = 0; i < problem.size(); i++) {
+            chocoVars[i] = model.intVar("Var" + i, 1, 9);
+        }
+        // define constraints of sudoku with choco constrains directly with use of problem
+        // AllDifferent constraints for rows, columns, and boxes
+        for (int r = 0; r < 9; r++) {
+            IntVar[] rowVars = new IntVar[9];
+            IntVar[] colVars = new IntVar[9];
+            IntVar[] boxVars = new IntVar[9];
+            for (int c = 0; c < 9; c++) {
+                rowVars[c] = chocoVars[r * 9 + c];
+                colVars[c] = chocoVars[c * 9 + r];
+                int boxRow = (r / 3) * 3 + c / 3;
+                int boxCol = (r % 3) * 3 + c % 3;
+                boxVars[c] = chocoVars[boxRow * 9 + boxCol];
+            }
+            model.allDifferent(rowVars).post();
+            model.allDifferent(colVars).post();
+            model.allDifferent(boxVars).post();
+        }
+
+         new AntColonyMetaHeuristicSolver(
+                chocoVars,
+                new AntiFirstFail(model),
+                acoParameters,
+                new ProbabilisticSelection()
         );
 
-        System.out.println("Creating Choco solver with ACO strategy...");
-        ChocoCSPSolver solver = new ChocoCSPSolver(problem, params);
-
-        System.out.println("Solving with " + maxCycles + " cycles...");
-        long startTime = System.currentTimeMillis();
-
-        Assignment solution = solver.solve(maxCycles);
-
-        long endTime = System.currentTimeMillis();
-        System.out.println("Time: " + (endTime - startTime) + " ms\n");
-
-        return solution;
+        if (model.getSolver().solve()) {
+            Assignment assignment = Assignment.empty();
+            for (int i = 0; i < chocoVars.length; i++) {
+                assignment = assignment.assign((Variable<Integer>) problem.getVariables().get(chocoVars[i].getValue()), chocoVars[i].getValue());
+            }
+            return assignment;
+        } else {
+            return Assignment.empty();
+        }
     }
 
     private static void printResult(Problem problem, Assignment solution) {
@@ -105,4 +130,3 @@ public class SudokuChocoTest {
         }
     }
 }
-
