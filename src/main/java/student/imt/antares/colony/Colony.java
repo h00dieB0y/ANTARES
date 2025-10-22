@@ -8,12 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import student.imt.antares.construction.AssignmentConstructor;
-import student.imt.antares.construction.ValueSelector;
+import student.imt.antares.construction.ProbabilisticSelection;
 import student.imt.antares.construction.VariableSelector;
-import student.imt.antares.pheromone.PheromoneUpdater;
+import student.imt.antares.pheromone.MaxMinUpdate;
 import student.imt.antares.problem.Assignment;
 import student.imt.antares.problem.Problem;
-import student.imt.antares.solver.CSPSolver;
+import student.imt.antares.solver.BasicCSPSolver;
 
 /**
  * Ant colony that iteratively constructs and improves CSP solutions.
@@ -44,9 +44,9 @@ public class Colony {
     public Assignment solve(Problem problem,
                             AssignmentConstructor constructor,
                             VariableSelector variableSelector,
-                            ValueSelector valueSelector,
-                            PheromoneUpdater pheromoneUpdater,
-                            CSPSolver solver,
+                            ProbabilisticSelection valueSelector,
+                            MaxMinUpdate pheromoneUpdater,
+                            BasicCSPSolver solver,
                             int maxCycles) {
 
         Objects.requireNonNull(problem, "Problem cannot be null");
@@ -62,7 +62,6 @@ public class Colony {
 
         logger.info("Starting ACO: {} cycles, {} ants/cycle, problem size: {}",
                    maxCycles, parameters.numberOfAnts(), problem.size());
-        logger.debug("Parameters: {}", parameters);
 
         for (int cycle = 0; cycle < maxCycles; cycle++) {
             Assignment cycleBest = executeCycle(problem, constructor, variableSelector,
@@ -74,11 +73,6 @@ public class Colony {
                            cycle, cycleBest.size(), problem.size());
                 return cycleBest;
             }
-
-            if ((cycle + 1) % 10 == 0 || cycle == 0) {
-                logger.info("Cycle {}/{} - Best: {}/{} variables",
-                           cycle + 1, maxCycles, bestAssignment.size(), problem.size());
-            }
         }
 
         logger.warn("Max cycles reached without complete solution. Best: {}/{} variables",
@@ -89,14 +83,12 @@ public class Colony {
     private Assignment executeCycle(Problem problem,
                                     AssignmentConstructor constructor,
                                     VariableSelector variableSelector,
-                                    ValueSelector valueSelector,
-                                    PheromoneUpdater pheromoneUpdater,
-                                    CSPSolver solver) {
+                                    ProbabilisticSelection valueSelector,
+                                    MaxMinUpdate pheromoneUpdater,
+                                    BasicCSPSolver solver) {
 
         List<Assignment> cycleAssignments = new ArrayList<>();
         Assignment cycleBest = Assignment.empty();
-
-        logger.debug("Starting cycle with {} ants", parameters.numberOfAnts());
 
         // Each ant constructs a solution
         for (int ant = 0; ant < parameters.numberOfAnts(); ant++) {
@@ -104,28 +96,25 @@ public class Colony {
                                                          variableSelector, valueSelector, solver);
 
             if (assignment.size() > 0) {
+                // Snapshot creates defensive copy - necessary because Assignment is mutable
+                // and will be reused/modified in subsequent ant constructions
                 cycleAssignments.add(assignment.snapshot());
-                logger.trace("Ant {} constructed assignment with {}/{} variables",
-                           ant, assignment.size(), problem.size());
 
                 // Track best in this cycle
                 if (assignment.size() > cycleBest.size()) {
+                    // Snapshot to preserve this assignment state before future mutations
                     cycleBest = assignment.snapshot();
-                    logger.debug("New cycle best: {}/{} variables", cycleBest.size(), problem.size());
                 }
 
                 // Track global best
                 if (assignment.size() > bestAssignment.size()) {
+                    // Snapshot to preserve this best solution - it must not change
                     bestAssignment = assignment.snapshot();
-                    logger.info("New global best: {}/{} variables", bestAssignment.size(), problem.size());
                 }
-            } else {
-                logger.trace("Ant {} failed to construct assignment", ant);
             }
         }
 
         // Update pheromones based on all assignments in this cycle
-        logger.debug("Updating pheromones with {} assignments", cycleAssignments.size());
         pheromones = pheromoneUpdater.update(pheromones, cycleAssignments, bestAssignment, parameters);
 
         return cycleBest;

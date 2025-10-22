@@ -24,10 +24,10 @@ public class SudokuProblem {
      * AllDifferent constraint: ensures all variables have different values.
      */
     private static class AllDifferentConstraint implements Constraint {
-        private final Set<Variable<Integer>> variables;
+        private final Set<Variable> variables;
         private final String name;
 
-        public AllDifferentConstraint(Set<Variable<Integer>> variables, String name) {
+        public AllDifferentConstraint(Set<Variable> variables, String name) {
             this.variables = Objects.requireNonNull(variables, "Variables cannot be null");
             this.name = Objects.requireNonNull(name, "Name cannot be null");
 
@@ -40,7 +40,7 @@ public class SudokuProblem {
         public boolean isSatisfiedBy(Assignment assignment) {
             Set<Integer> assignedValues = new HashSet<>();
 
-            for (Variable<Integer> var : variables) {
+            for (Variable var : variables) {
                 var value = assignment.getValue(var);
 
                 if (value.isEmpty()) {
@@ -58,7 +58,7 @@ public class SudokuProblem {
         }
 
         @Override
-        public Set<Variable<?>> getInvolvedVariables() {
+        public Set<Variable> getInvolvedVariables() {
             return new HashSet<>(variables);
         }
 
@@ -77,8 +77,8 @@ public class SudokuProblem {
     public static Problem create(int[][] initialGrid) {
         validateGrid(initialGrid);
 
-        Variable<Integer>[][] cells = new Variable[9][9];
-        List<Variable<?>> allVariables = new ArrayList<>();
+        Variable[][] cells = new Variable[9][9];
+        List<Variable> allVariables = new ArrayList<>();
 
         for (int row = 0; row < 9; row++) {
             for (int col = 0; col < 9; col++) {
@@ -88,7 +88,7 @@ public class SudokuProblem {
                         : Set.of(1, 2, 3, 4, 5, 6, 7, 8, 9);
 
                 String cellName = "R" + row + "C" + col;
-                cells[row][col] = new Variable<>(cellName, domain);
+                cells[row][col] = new Variable(cellName, domain);
                 allVariables.add(cells[row][col]);
             }
         }
@@ -96,7 +96,7 @@ public class SudokuProblem {
         List<Constraint> constraints = new ArrayList<>();
 
         for (int row = 0; row < 9; row++) {
-            Set<Variable<Integer>> rowVars = new HashSet<>();
+            Set<Variable> rowVars = new HashSet<>();
             for (int col = 0; col < 9; col++) {
                 rowVars.add(cells[row][col]);
             }
@@ -104,7 +104,7 @@ public class SudokuProblem {
         }
 
         for (int col = 0; col < 9; col++) {
-            Set<Variable<Integer>> colVars = new HashSet<>();
+            Set<Variable> colVars = new HashSet<>();
             for (int row = 0; row < 9; row++) {
                 colVars.add(cells[row][col]);
             }
@@ -113,7 +113,7 @@ public class SudokuProblem {
 
         for (int boxRow = 0; boxRow < 3; boxRow++) {
             for (int boxCol = 0; boxCol < 3; boxCol++) {
-                Set<Variable<Integer>> boxVars = new HashSet<>();
+                Set<Variable> boxVars = new HashSet<>();
                 for (int i = 0; i < 3; i++) {
                     for (int j = 0; j < 3; j++) {
                         int row = boxRow * 3 + i;
@@ -242,17 +242,13 @@ public class SudokuProblem {
     public static int[][] assignmentToGrid(Assignment assignment) {
         int[][] grid = new int[9][9];
 
-        for (Variable<?> var : assignment.getAssignedVariables()) {
+        for (Variable var : assignment.getAssignedVariables()) {
             String name = var.name();
             int row = Character.getNumericValue(name.charAt(1));
             int col = Character.getNumericValue(name.charAt(3));
 
             assignment.getValue(var).ifPresent(value -> {
-                if (!(value instanceof Integer)) {
-                    throw new IllegalArgumentException(
-                        "Expected Integer value for Sudoku cell " + name + ", got: " + value.getClass().getSimpleName());
-                }
-                grid[row][col] = (Integer) value;
+                grid[row][col] = value;
             });
         }
 

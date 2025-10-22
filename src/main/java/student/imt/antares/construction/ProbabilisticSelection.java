@@ -24,8 +24,8 @@ import student.imt.antares.problem.Variable;
  *
  * @since 1.0
  */
-public class ProbabilisticSelection implements ValueSelector {
-    
+public class ProbabilisticSelection {
+
     private final Random random;
 
     public ProbabilisticSelection() {
@@ -34,10 +34,9 @@ public class ProbabilisticSelection implements ValueSelector {
 
     public ProbabilisticSelection(long seed) {
         this.random = new Random(seed);
-    } 
+    }
 
-    @Override
-    public <T> Optional<T> select(Variable<T> variable, Set<T> domain, PheromoneMatrix pheromones,
+    public Optional<Integer> select(Variable variable, Set<Integer> domain, PheromoneMatrix pheromones,
             ACOParameters params) {
 
         if (domain == null || domain.isEmpty()) {
@@ -48,13 +47,13 @@ public class ProbabilisticSelection implements ValueSelector {
             return Optional.of(domain.iterator().next());
         }
 
-        Map<T, Double> probabilities = calculateProbabilities(variable, domain, pheromones, params);
+        Map<Integer, Double> probabilities = calculateProbabilities(variable, domain, pheromones, params);
 
         return rouletteWheelSelection(probabilities);
     }
 
 
-    private <T> Map<T, Double> calculateProbabilities(Variable<T> variable, Set<T> domain, PheromoneMatrix pheromones, ACOParameters params) {
+    private Map<Integer, Double> calculateProbabilities(Variable variable, Set<Integer> domain, PheromoneMatrix pheromones, ACOParameters params) {
         double alpha = params.alpha();
         double beta = params.beta();
 
@@ -78,7 +77,7 @@ public class ProbabilisticSelection implements ValueSelector {
 
     }
 
-    private <T> Optional<T> rouletteWheelSelection(Map<T, Double> probabilities) {
+    private Optional<Integer> rouletteWheelSelection(Map<Integer, Double> probabilities) {
         if (probabilities.isEmpty()) {
             return Optional.empty();
         }
@@ -86,7 +85,7 @@ public class ProbabilisticSelection implements ValueSelector {
         double rand = random.nextDouble();
         double cumulativeProb = 0.0;
 
-        for (Map.Entry<T, Double> entry : probabilities.entrySet()) {
+        for (Map.Entry<Integer, Double> entry : probabilities.entrySet()) {
             cumulativeProb += entry.getValue();
             if (rand <= cumulativeProb) {
                 return Optional.of(entry.getKey());

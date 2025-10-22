@@ -7,19 +7,15 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Mutable mapping from variables to their assigned values.
+ * Mutable mapping from variables to their assigned integer values.
  * Supports partial assignments during search and complete solutions.
  *
  * @see Variable
  */
 public final class Assignment {
-    /**
-     * Internal storage using Object values to allow heterogeneous variable types.
-     * Type safety is maintained through the generic public API methods.
-     */
-    private final Map<Variable<?>, Object> assignments;
+    private final Map<Variable, Integer> assignments;
 
-    private Assignment(Map<Variable<?>, Object> assignments) {
+    private Assignment(Map<Variable, Integer> assignments) {
         this.assignments = assignments;
     }
 
@@ -27,49 +23,61 @@ public final class Assignment {
         return new Assignment(new HashMap<>());
     }
 
-    public static Assignment of(Map<Variable<?>, Object> assignments) {
+    public static Assignment of(Map<Variable, Integer> assignments) {
         return new Assignment(new HashMap<>(assignments));
     }
 
-    public <T> Assignment assign(Variable<T> variable, T value) {
+    /**
+     * Assigns an integer value to a variable, mutating this instance.
+     *
+     * @param variable the variable to assign
+     * @param value the integer value to assign to the variable
+     * @return this instance (for fluent method chaining)
+     */
+    public Assignment assign(Variable variable, Integer value) {
         assignments.put(variable, value);
         return this;
     }
 
-    public Assignment unassign(Variable<?> variable) {
+    /**
+     * Removes an assignment for a variable, mutating this instance.
+     *
+     * @param variable the variable to unassign
+     * @return this instance (for fluent method chaining)
+     */
+    public Assignment unassign(Variable variable) {
         assignments.remove(variable);
         return this;
     }
 
     /**
-     * Creates an independent copy of this assignment.
-     * Use when storing assignments that must not be affected by future mutations.
+     * Creates an independent copy of this assignment (defensive copy).
+     * <p>
+     * Use when storing assignments that must not be affected by future mutations,
+     * such as when saving best solutions in Colony or caching intermediate states.
+     * </p>
+     *
+     * @return a new Assignment instance with a copy of the current assignments
      */
     public Assignment snapshot() {
         return new Assignment(new HashMap<>(assignments));
     }
 
     /**
-     * Retrieves the value assigned to a variable.
+     * Retrieves the integer value assigned to a variable.
      *
      * @param variable the variable to look up
-     * @param <T> the type of the variable's domain
-     * @return Optional containing the assigned value, or empty if unassigned
-     *
-     * @implNote Contains an unchecked cast from Object to T, which is safe because
-     * {@link #assign(Variable, Object)} enforces type consistency at insertion time.
+     * @return Optional containing the assigned integer value, or empty if unassigned
      */
-    public <T> Optional<T> getValue(Variable<T> variable) {
-        @SuppressWarnings("unchecked") // Safe: assign() enforces Variable<T> -> T relationship
-        T value = (T) assignments.get(variable);
-        return Optional.ofNullable(value);
+    public Optional<Integer> getValue(Variable variable) {
+        return Optional.ofNullable(assignments.get(variable));
     }
 
-    public boolean isAssigned(Variable<?> variable) {
+    public boolean isAssigned(Variable variable) {
         return assignments.containsKey(variable);
     }
 
-    public Set<Variable<?>> getAssignedVariables() {
+    public Set<Variable> getAssignedVariables() {
         return assignments.keySet();
     }
 

@@ -205,8 +205,7 @@ mvn exec:java
 
 ## License
 
-This project is part of academic work at IMT. Educational and research use permitted.
-
+This project is part of academic work at IMT
 ---
 
 For questions, issues, or contributions, please refer to the project repository or contact the authors.

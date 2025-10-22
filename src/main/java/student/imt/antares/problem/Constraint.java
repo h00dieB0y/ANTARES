@@ -36,5 +36,5 @@ public interface Constraint {
      *
      * @return set of variables involved in this constraint (never null or empty)
      */
-    Set<Variable<?>> getInvolvedVariables();
+    Set<Variable> getInvolvedVariables();
 }

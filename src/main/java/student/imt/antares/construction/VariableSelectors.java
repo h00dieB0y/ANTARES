@@ -16,6 +16,10 @@ import java.util.Optional;
  */
 public class VariableSelectors {
 
+    private VariableSelectors() {
+        // Prevent instantiation
+    }
+    
     /**
      * Selects the unassigned variable with the smallest remaining domain (most constrained first).
      * <p>
@@ -34,7 +38,7 @@ public class VariableSelectors {
      * </p>
      */
     public static final VariableSelector RANDOM = (problem, assignment, solver) -> {
-        List<Variable<?>> unassigned = problem.getVariables().stream()
+        List<Variable> unassigned = problem.getVariables().stream()
             .filter(var -> !assignment.isAssigned(var))
             .toList();
 
