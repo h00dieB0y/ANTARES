@@ -33,7 +33,7 @@ public final class PheromoneMatrix {
         this.trailToIndex = trailToIndex;
     }
 
-    public static PheromoneMatrix initialize(List<Variable<?>> variables, double initialPheromone) {
+    public static PheromoneMatrix initialize(Problem problem, double initialPheromone) {
         validatePositive(initialPheromone, "Initial pheromone");
 
         Map<Trail, Integer> indexMap = new HashMap<>();
@@ -174,6 +174,28 @@ public final class PheromoneMatrix {
     @Override
     public String toString() {
         return "PheromoneMatrix{" + pheromones.length + " trails}";
+    }
+
+    /**
+     * Returns a detailed string representation showing pheromone values for a specific variable.
+     * Useful for debugging and understanding pheromone distribution.
+     *
+     * @param variable the variable to show pheromone values for
+     * @return formatted string with (value → pheromone) pairs
+     */
+    public String toStringForVariable(Variable variable) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(variable.name()).append(": [");
+
+        boolean first = true;
+        for (Integer value : variable.domain()) {
+            if (!first) sb.append(", ");
+            double amount = getAmount(variable, value);
+            sb.append(value).append("→").append(String.format("%.4f", amount));
+            first = false;
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     private record Trail(Variable variable, Integer value) {

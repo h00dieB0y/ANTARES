@@ -25,68 +25,97 @@ import java.util.stream.IntStream;
 /**
  *
  * How to use this class ?
- * <pre><code>
+ * 
+ * <pre>
+ * <code>
  *  Model model = new Model();
  *  // declare variables and constraints
  *  // ...
  * AntColonyMetaHeuristic ac = new AntColonyMetaHeuristic( parameters );
  * model.getSolver().setSearch(ac);
  * model.getSolver().solve();
- * </code></pre>
+ * </code>
+ * </pre>
  *
  * @author Charles Prud'homme
  */
 
 public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
-            implements IMonitorRestart, IMonitorSolution, IMonitorContradiction {
+        implements IMonitorRestart, IMonitorSolution, IMonitorContradiction {
+
+    private static final Logger logger = LoggerFactory.getLogger(AntColonyMetaHeuristic.class);
 
     private final Model model;
     private final VariableSelector<IntVar> variableSelector;
-    private final ACOParameters acoParameters;
-    private final PheromoneMatrix pheromoneMatrix;
-    private final MaxMinUpdate pheromoneUpdater = new MaxMinUpdate();
-    private final ProbabilisticSelection valueSelector;
-    private final Map<Variable<Integer>, IntVar> acoVariables;
-    private final List<Assignment> assignmentList = new ArrayList<>();
-    private Assignment bestAssignment = Assignment.empty();
-    private Assignment currentAssignment = Assignment.empty();
-    private int antsUsed = 0;
+    private final IntVarAdapter adapter;
+    private final ACOParameters parameters;
 
+    // Reuse ANTARES core components (NO duplication!)
+    private final PheromoneMatrix pheromones;
+    private final ProbabilisticSelection valueSelector;
+    private final MaxMinUpdate pheromoneUpdater;
+
+    // Ant cycle tracking
+    private int currentAnt;
+    private int currentCycle;
+
+    // Path tracking for current ant
+    private List<ChocoDecision> currentPath;
+
+    // Solutions collected in current cycle (as ANTARES Assignments)
+    private List<Assignment> cycleSolutions;
+
+    // Best solution found overall
+    private Assignment bestOverall;
+    private boolean solutionFoundByCurrentAnt;
+
+    /**
+     * Creates an ACO metaheuristic strategy for Choco.
+     *
+     * @param variables        all decision variables in the model
+     * @param variableSelector strategy for selecting which variable to assign next
+     * @param parameters       ACO parameters (alpha, beta, rho, tauMin, tauMax,
+     *                         numberOfAnts)
+     * @param restartFrequency restart every N failures
+     */
     public AntColonyMetaHeuristicSolver(IntVar[] variables,
-                                  VariableSelector<IntVar> variableSelector,
-                                  ACOParameters acoParameters,
-                                  ProbabilisticSelection valueSelector
-    ) {
+            VariableSelector<IntVar> variableSelector,
+            ACOParameters parameters,
+            int restartFrequency) {
         super(variables);
         this.model = variables[0].getModel();
-        this.acoVariables = getACOVariables();
         this.variableSelector = variableSelector;
-        this.acoParameters = acoParameters;
-        this.pheromoneMatrix = PheromoneMatrix.initialize(new ArrayList<>(acoVariables.keySet()),
-                                                          acoParameters.tauMax());
-        this.valueSelector = valueSelector;
+        this.parameters = parameters;
 
-        // connection with the model/solver
-        model.getSolver().plugMonitor(this);
+        // Create adapter to convert IntVar ↔ Variable
+        this.adapter = new IntVarAdapter(variables);
 
-        // restart on every solution
+        this.pheromones = PheromoneMatrix.initialize(adapter.getProblem(), parameters.tauMax());
+        this.valueSelector = new ProbabilisticSelection();
+        this.pheromoneUpdater = new MaxMinUpdate();
+
+        this.currentAnt = 0;
+        this.currentCycle = 0;
+        this.currentPath = new ArrayList<>();
+        this.cycleSolutions = new ArrayList<>();
+        this.bestOverall = Assignment.empty();
+        this.solutionFoundByCurrentAnt = false;
+
+        // Configure Choco restart mechanism
         model.getSolver().setRestartOnSolutions();
-
-        // restart every 100 failures
         model.getSolver().addRestarter(new Restarter(
-                new MonotonicCutoff(100),
+                new MonotonicCutoff(restartFrequency),
                 new FailCounter(model, 1),
                 Integer.MAX_VALUE, false));
+
+        logger.info("ACO initialized: {} ants/cycle, restart on first failure, {} variables",
+                parameters.numberOfAnts(), variables.length);
     }
 
-    private Map<Variable<Integer>, IntVar> getACOVariables() {
-        Map<Variable<Integer>, IntVar> acoVars = new HashMap<>();
-        for (IntVar var : vars) {
-            Set<Integer> domain = IntStream.rangeClosed(var.getLB(), var.getUB()).boxed().collect(Collectors.toSet());
-            Variable<Integer> problemVar = new Variable<>(var.getName(), domain);
-            acoVars.put(problemVar, var);
-        }
-        return acoVars;
+    public AntColonyMetaHeuristic(IntVar[] variables,
+                                  VariableSelector<IntVar> variableSelector,
+                                  ACOParameters parameters) {
+        this(variables, variableSelector, parameters, 100);
     }
 
     @Override
@@ -111,96 +140,227 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
     public Decision<IntVar> getDecision() {
         // make a decision
         return computeDecision(
-                variableSelector.getVariable(vars)
-        );
+                variableSelector.getVariable(vars));
     }
 
     // syntaxix sugar
     private Decision<IntVar> buildEqualsDecision(IntVar variable, int value) {
-        return model.getSolver().getDecisionPath().makeIntDecision(variable, DecisionOperatorFactory.makeIntEq(), value);
+        return model.getSolver().getDecisionPath().makeIntDecision(variable, DecisionOperatorFactory.makeIntEq(),
+                value);
     }
 
     @Override
-    public Decision<IntVar> computeDecision(IntVar variable) {
-        if (variable == null || variable.isInstantiated()) {
+    public Decision<IntVar> computeDecision(IntVar intVar) {
+        if (intVar == null || intVar.isInstantiated()) {
             return null;
         }
-        // call the value selector
-        int value = selectValue(variable);
 
-        return buildEqualsDecision(variable, value);
-    }
+        Optional<Integer> selectedValue = selectValue(intVar);
 
-    private int selectValue(IntVar variable) {
-
-        // select the value here
-        Variable<Integer> problemVar = acoVariables.entrySet().stream()
-                .filter(entry -> entry.getValue().equals(variable))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Variable not found in ACO variables mapping"));
-
-        Set<Integer> currentDomain = IntStream.rangeClosed(variable.getLB(), variable.getUB())
-                .filter(variable::contains)
-                .boxed()
-                .collect(Collectors.toSet());
-
-        int value = valueSelector.select(
-                problemVar,
-                currentDomain,
-                pheromoneMatrix,
-                acoParameters
-        ).orElseThrow(() -> new IllegalStateException("No value selected for variable " + variable.getName()));
-
-        currentAssignment.assign(problemVar, value);
-        return value;
-    }
-
-    @Override
-    public void onContradiction(ContradictionException cex) {
-        // things to do on a failure
-        System.out.println("Contradiction encountered: " + cex.getMessage());
-        antsUsed++;
-        assignmentList.add(currentAssignment.snapshot());
-        if(currentAssignment.size() >= bestAssignment.size()) {
-            bestAssignment = currentAssignment.snapshot();
+        if (selectedValue.isEmpty()) {
+            return null;
         }
-        currentAssignment = Assignment.empty();
+
+        int value = selectedValue.get();
+
+        // Track this decision in the current ant's path
+        currentPath.add(new ChocoDecision(intVar, value));
+
+        return buildEqualsDecision(intVar, value);
     }
 
-    @Override
-    public void beforeRestart() {
-        // things to do before restarting
-        model.getSolver().reset();
-        if(antsUsed >= acoParameters.numberOfAnts()) {
-            antsUsed = 0;
-            pheromoneUpdater.update(
-                    pheromoneMatrix,
-                    assignmentList,
-                    bestAssignment,
-                    acoParameters
-            );
+    private Optional<Integer> selectValue(IntVar intVar) {
+        // Convert IntVar to ANTARES Variable
+        Variable var = adapter.toVariable(intVar);
+        if (var == null) {
+            return Optional.empty();
         }
-    }
 
-    @Override
-    public void afterRestart() {
-        // things to do after the restart
-        if(antsUsed >= acoParameters.numberOfAnts()) {
-            bestAssignment = Assignment.empty();
-            assignmentList.clear();
-        }
-        currentAssignment = Assignment.empty();
+        // Get current domain from Choco (after propagation)
+        Set<Integer> domain = adapter.getCurrentDomain(intVar);
 
+        // Use ANTARES ProbabilisticSelection (reused, not duplicated!)
+        return valueSelector.select(var, domain, pheromones, parameters);
     }
 
     @Override
     public void onSolution() {
-        // things to do on a solution, if needed
-        assignmentList.add(currentAssignment.snapshot());
-        if(currentAssignment.size() > bestAssignment.size()) {
-            bestAssignment = currentAssignment.snapshot();
+        this.solutionFoundByCurrentAnt = true;
+        Assignment assignment = adapter.toAssignment(currentPath);
+        cycleSolutions.add(assignment);
+
+        logger.debug("Ant {} found solution with {} decisions", currentAnt, assignment.size());
+
+        // Track global best
+        if (assignment.size() >= bestOverall.size()) {
+            bestOverall = assignment.snapshot();
+            logger.info("New best solution: {} variables assigned", bestOverall.size());
+        }
+    }
+
+    @Override
+    public void beforeRestart() {
+        // Nothing to do before restart
+    }
+
+    @Override
+    public void afterRestart() {
+        currentAnt++;
+
+        // If we've completed a cycle (N ants), perform pheromone update
+        if (currentAnt >= parameters.numberOfAnts()) {
+            performCycleUpdate();
+            currentAnt = 0;
+            currentCycle++;
+        }
+
+        // Clear path for new ant and reset flag for the new ant's run
+        currentPath.clear();
+        this.solutionFoundByCurrentAnt = false;
+    }
+
+    @Override
+    public void onContradiction(ContradictionException cex) {
+        // If the current ant did not find a complete solution and has a partial path,
+        // capture it before the restart clears the path.
+        if (!this.solutionFoundByCurrentAnt && !currentPath.isEmpty()) {
+            Assignment partialAssignment = adapter.toAssignment(currentPath);
+            cycleSolutions.add(partialAssignment);
+            logger.debug("Ant {} ended with partial assignment of {} decisions due to contradiction", currentAnt,
+                    partialAssignment.size());
+
+            // Update global best if this partial assignment is better (more variables
+            // assigned)
+            if (partialAssignment.size() > bestOverall.size()) {
+                bestOverall = partialAssignment.snapshot();
+                logger.info("New best partial solution: {} variables assigned (from contradiction)",
+                        bestOverall.size());
+            }
+        }
+    }
+
+    /**
+     * Performs pheromone update after completing a cycle of N ants.
+     * <p>
+     * Reuses {@link MaxMinUpdate} from ANTARES core - NO duplication!
+     * </p>
+     */
+    private void performCycleUpdate() {
+        if (cycleSolutions.isEmpty()) {
+            logger.debug("Cycle {} complete: no solutions found", currentCycle);
+            cycleSolutions.clear();
+            return;
+        }
+
+        logger.debug("Cycle {} complete: {} solutions found, updating pheromones",
+                currentCycle, cycleSolutions.size());
+
+        // Use ANTARES MaxMinUpdate (reused, not duplicated!)
+        pheromoneUpdater.update(pheromones, cycleSolutions, bestOverall, parameters);
+
+        // Clear for next cycle
+        cycleSolutions.clear();
+    }
+
+    private record ChocoDecision(IntVar variable, int value) {
+        public ChocoDecision {
+            Objects.requireNonNull(variable, "Variable cannot be null");
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s=%d", variable.getName(), value);
+        }
+    }
+
+    private class IntVarAdapter {
+
+        private final Map<IntVar, Variable> intVarToVariable;
+        private final Map<Variable, IntVar> variableToIntVar;
+        private final Problem problem;
+        private final IntVar[] chocoVars;
+
+        /**
+         * Creates an adapter for a set of Choco variables.
+         *
+         * @param chocoVars the Choco IntVar array (only uninstantiated variables)
+         */
+        public IntVarAdapter(IntVar[] chocoVars) {
+            this.chocoVars = chocoVars;
+            this.intVarToVariable = new HashMap<>();
+            this.variableToIntVar = new HashMap<>();
+
+            // Create ANTARES Variable for each IntVar
+            List<Variable> antaresVars = new ArrayList<>();
+            for (IntVar intVar : chocoVars) {
+                Set<Integer> domain = extractDomain(intVar);
+                Variable variable = new Variable(intVar.getName(), domain);
+
+                intVarToVariable.put(intVar, variable);
+                variableToIntVar.put(variable, intVar);
+                antaresVars.add(variable);
+            }
+
+            // Create a minimal Problem (no constraints needed, Choco handles propagation)
+            this.problem = new Problem(antaresVars, List.of());
+        }
+
+        /**
+         * Converts an IntVar to its corresponding ANTARES Variable.
+         */
+        public Variable toVariable(IntVar intVar) {
+            return intVarToVariable.get(intVar);
+        }
+
+        /**
+         * Converts an ANTARES Variable to its corresponding IntVar.
+         */
+        public IntVar toIntVar(Variable variable) {
+            return variableToIntVar.get(variable);
+        }
+
+        /**
+         * Returns the ANTARES Problem representation (for PheromoneMatrix
+         * initialization).
+         */
+        public Problem getProblem() {
+            return problem;
+        }
+
+        /**
+         * Converts a list of Choco decisions to an ANTARES Assignment.
+         */
+        public Assignment toAssignment(List<ChocoDecision> decisions) {
+            Assignment assignment = Assignment.empty();
+            for (ChocoDecision decision : decisions) {
+                Variable variable = toVariable(decision.variable());
+                if (variable != null) {
+                    assignment = assignment.assign(variable, decision.value());
+                }
+            }
+            return assignment;
+        }
+
+        /**
+         * Extracts the current domain of an IntVar as a Set<Integer>.
+         */
+        private Set<Integer> extractDomain(IntVar intVar) {
+            Set<Integer> domain = new HashSet<>();
+            int lb = intVar.getLB();
+            int ub = intVar.getUB();
+            for (int value = lb; value <= ub; value++) {
+                if (intVar.contains(value)) {
+                    domain.add(value);
+                }
+            }
+            return domain;
+        }
+
+        /**
+         * Gets the current reduced domain of an IntVar (after propagation).
+         */
+        public Set<Integer> getCurrentDomain(IntVar intVar) {
+            return extractDomain(intVar);
         }
     }
 }
-
