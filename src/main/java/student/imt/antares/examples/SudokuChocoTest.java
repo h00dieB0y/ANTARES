@@ -1,6 +1,7 @@
 package student.imt.antares.examples;
 
 import org.chocosolver.solver.Model;
+import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.search.strategy.selectors.variables.AntiFirstFail;
 import org.chocosolver.solver.variables.IntVar;
 import student.imt.antares.colony.ACOParameters;
@@ -22,7 +23,7 @@ public class SudokuChocoTest {
         System.out.println("=== Sudoku Solver with Choco + ACO ===\n");
 
         //testEasySudoku();
-        //testMediumSudoku();
+        testMediumSudoku();
         //testHardSudoku();
     }
 
@@ -123,9 +124,9 @@ public class SudokuChocoTest {
 
         // Create ACO metaheuristic strategy
         IntVar[] allVars = model.retrieveIntVars(true);
-        AntColonyMetaHeuristic acoStrategy = new AntColonyMetaHeuristic(
+        AntColonyMetaHeuristicSolver acoStrategy = new AntColonyMetaHeuristicSolver(
             allVars,
-            new FirstFail(model),  // Variable selector: smallest domain first (first-fail heuristic)
+            new AntiFirstFail(model),
             acoParams
         );
 

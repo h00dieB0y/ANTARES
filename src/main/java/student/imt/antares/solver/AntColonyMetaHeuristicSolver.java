@@ -10,12 +10,15 @@ import org.chocosolver.solver.search.strategy.decision.Decision;
 import org.chocosolver.solver.search.strategy.selectors.variables.VariableSelector;
 import org.chocosolver.solver.search.strategy.strategy.AbstractStrategy;
 import org.chocosolver.solver.variables.IntVar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.PheromoneMatrix;
 import student.imt.antares.construction.ProbabilisticSelection;
 import student.imt.antares.pheromone.MaxMinUpdate;
 import student.imt.antares.problem.Assignment;
+import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
 
 import java.util.*;
@@ -43,7 +46,7 @@ import java.util.stream.IntStream;
 public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         implements IMonitorRestart, IMonitorSolution, IMonitorContradiction {
 
-    private static final Logger logger = LoggerFactory.getLogger(AntColonyMetaHeuristic.class);
+    private static final Logger logger = LoggerFactory.getLogger(AntColonyMetaHeuristicSolver.class);
 
     private final Model model;
     private final VariableSelector<IntVar> variableSelector;
@@ -76,12 +79,10 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
      * @param variableSelector strategy for selecting which variable to assign next
      * @param parameters       ACO parameters (alpha, beta, rho, tauMin, tauMax,
      *                         numberOfAnts)
-     * @param restartFrequency restart every N failures
      */
     public AntColonyMetaHeuristicSolver(IntVar[] variables,
             VariableSelector<IntVar> variableSelector,
-            ACOParameters parameters,
-            int restartFrequency) {
+            ACOParameters parameters) {
         super(variables);
         this.model = variables[0].getModel();
         this.variableSelector = variableSelector;
@@ -104,18 +105,12 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         // Configure Choco restart mechanism
         model.getSolver().setRestartOnSolutions();
         model.getSolver().addRestarter(new Restarter(
-                new MonotonicCutoff(restartFrequency),
+                new MonotonicCutoff(100),
                 new FailCounter(model, 1),
                 Integer.MAX_VALUE, false));
 
         logger.info("ACO initialized: {} ants/cycle, restart on first failure, {} variables",
                 parameters.numberOfAnts(), variables.length);
-    }
-
-    public AntColonyMetaHeuristic(IntVar[] variables,
-                                  VariableSelector<IntVar> variableSelector,
-                                  ACOParameters parameters) {
-        this(variables, variableSelector, parameters, 100);
     }
 
     @Override
@@ -179,8 +174,22 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         // Get current domain from Choco (after propagation)
         Set<Integer> domain = adapter.getCurrentDomain(intVar);
 
+        logger.debug("Ant {}: Selecting value for variable {} with domain {}", currentAnt, var.name(), domain);
+        for (Integer value : domain) {
+            double pheromone = pheromones.getAmount(var, value);
+            logger.debug("  Value {}: Pheromone = {}", value, pheromone);
+        }
+
         // Use ANTARES ProbabilisticSelection (reused, not duplicated!)
-        return valueSelector.select(var, domain, pheromones, parameters);
+        Optional<Integer> selectedValue = valueSelector.select(var, domain, pheromones, parameters);
+
+        if (selectedValue.isPresent()) {
+            logger.debug("Ant {}: Selected value {} for variable {}", currentAnt, selectedValue.get(), var.name());
+        } else {
+            logger.debug("Ant {}: No value selected for variable {}", currentAnt, var.name());
+        }
+
+        return selectedValue;
     }
 
     @Override
