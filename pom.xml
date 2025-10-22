@@ -29,7 +29,7 @@
         </dependency>
         <dependency>
             <groupId>org.choco-solver</groupId>
-            <artifactId>choco-solver</artifactId>
+            <artifactId>choco-parsers</artifactId>
             <version>${choco.version}</version>
         </dependency>
     </dependencies>
