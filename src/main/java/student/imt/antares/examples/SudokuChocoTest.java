@@ -23,8 +23,8 @@ public class SudokuChocoTest {
         System.out.println("=== Sudoku Solver with Choco + ACO ===\n");
 
         //testEasySudoku();
-        testMediumSudoku();
-        //testHardSudoku();
+        //testMediumSudoku();
+        testHardSudoku();
     }
 
 
@@ -132,6 +132,7 @@ public class SudokuChocoTest {
 
         Solver solver = model.getSolver();
         solver.setSearch(acoStrategy); // Re-enable ACO strategy
+        solver.showShortStatistics();
 
         // Limit search to prevent infinite loops
         solver.limitRestart(maxRestarts);
