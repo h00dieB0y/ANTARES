@@ -177,7 +177,7 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         logger.debug("Ant {}: Selecting value for variable {} with domain {}", currentAnt, var.name(), domain);
         for (Integer value : domain) {
             double pheromone = pheromones.getAmount(var, value);
-            logger.debug("  Value {}: Pheromone = {}", value, pheromone);
+            //System.out.printf("  Value %d: Pheromone = %.3f \n", value, pheromone);
         }
 
         // Use ANTARES ProbabilisticSelection (reused, not duplicated!)
