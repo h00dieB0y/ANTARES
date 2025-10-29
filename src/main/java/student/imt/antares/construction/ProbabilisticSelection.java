@@ -29,7 +29,7 @@ public class ProbabilisticSelection {
     private final Random random;
 
     public ProbabilisticSelection() {
-        this.random = new Random();
+        this.random = new Random(25072001);
     }
 
     public ProbabilisticSelection(long seed) {
@@ -47,52 +47,58 @@ public class ProbabilisticSelection {
             return Optional.of(domain.iterator().next());
         }
 
-        Map<Integer, Double> probabilities = calculateProbabilities(variable, domain, pheromones, params);
-
-        return rouletteWheelSelection(probabilities);
+        return rouletteWheelSelection(variable, domain, pheromones, params);
     }
 
+    /**
+     * Performs fitness-proportional selection using weights without normalization.
+     * <p>
+     * More efficient than pre-computing all probabilities:
+     * 1. Calculate sum of all weights (τ^α * η^β)
+     * 2. Pick random value in [0, sum)
+     * 3. Iterate through values, accumulating weights until threshold is reached
+     * </p>
+     */
+    private Optional<Integer> rouletteWheelSelection(Variable variable, Set<Integer> domain,
+            PheromoneMatrix pheromones, ACOParameters params) {
 
-    private Map<Integer, Double> calculateProbabilities(Variable variable, Set<Integer> domain, PheromoneMatrix pheromones, ACOParameters params) {
         double alpha = params.alpha();
         double beta = params.beta();
 
-        double sum = domain.stream()
-                .mapToDouble(value -> {
-                    double tau = pheromones.getAmount(variable, value);
-                    double eta = 1.0;
-                    return Math.pow(tau, alpha) * Math.pow(eta, beta);
-                })
-                .sum();
-
-        return domain.stream()
-                .collect(Collectors.toMap(
-                    value -> value,
-                    value -> {
-                        double tau = pheromones.getAmount(variable, value);
-                        double eta = 1.0;
-                        return (Math.pow(tau, alpha) * Math.pow(eta, beta)) / sum;
-                    }
-                ));
-
-    }
-
-    private Optional<Integer> rouletteWheelSelection(Map<Integer, Double> probabilities) {
-        if (probabilities.isEmpty()) {
-            return Optional.empty();
+        // First pass: calculate sum of all weights
+        double sumWeights = 0.0;
+        for (Integer value : domain) {
+            double tau = pheromones.getAmount(variable, value);
+            double eta = 1.0;
+            double weight = Math.pow(tau, alpha) * Math.pow(eta, beta);
+            sumWeights += weight;
         }
 
-        double rand = random.nextDouble();
-        double cumulativeProb = 0.0;
+        if (sumWeights == 0.0) {
+            throw new IllegalStateException(
+                "All pheromone weights are zero for variable: " + variable.name()
+            );
+        }
 
-        for (Map.Entry<Integer, Double> entry : probabilities.entrySet()) {
-            cumulativeProb += entry.getValue();
-            if (rand <= cumulativeProb) {
-                return Optional.of(entry.getKey());
+        // Second pass: select value using random threshold
+        double randomThreshold = random.nextDouble() * sumWeights;
+        double cumulativeWeight = 0.0;
+
+        for (Integer value : domain) {
+            double tau = pheromones.getAmount(variable, value);
+            double eta = 1.0;
+            double weight = Math.pow(tau, alpha) * Math.pow(eta, beta);
+            cumulativeWeight += weight;
+
+            if (randomThreshold <= cumulativeWeight) {
+                return Optional.of(value);
             }
         }
 
-        // Fallback: return last element if rounding errors occur
-        return Optional.of(probabilities.keySet().iterator().next());
+        // This should never happen as randomThreshold < sumWeights
+        throw new IllegalStateException(
+            "Roulette wheel selection failed: threshold=" + randomThreshold +
+            ", final cumulative=" + cumulativeWeight
+        );
     }
 }

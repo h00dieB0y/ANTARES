@@ -71,11 +71,9 @@ public class MaxMinUpdate {
         }
 
         // Collect ALL assignments with max size
-        List<Assignment> bestOnes = assignments.stream()
+        return assignments.stream()
                 .filter(a -> a.size() == maxSize)
-                .collect(Collectors.toList());
-
-        return bestOnes;
+                .toList();
     }
 
     /**
@@ -92,12 +90,12 @@ public class MaxMinUpdate {
 
         // Defensive: should never be negative if Colony updates bestOverall correctly
         if (gap < 0) {
-            logger.warn("Assignment size {} exceeds best overall {} - possible race condition",
-                       assignment.size(), bestOverall.size());
-            gap = 0; // Treat as equal to best
+            throw new IllegalStateException(
+                "Assignment size exceeds best overall size: " +
+                "assignment size=" + assignment.size() +
+                ", best overall size=" + bestOverall.size());
         }
 
-        double delta = 1.0 / (1.0 + gap);
-        return delta;
+        return 1.0 / (1.0 + gap);
     }
 }
