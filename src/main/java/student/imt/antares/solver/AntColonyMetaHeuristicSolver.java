@@ -22,8 +22,6 @@ import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  *

@@ -2,10 +2,7 @@ package student.imt.antares.pheromone;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.PheromoneMatrix;
@@ -18,7 +15,6 @@ import student.imt.antares.problem.Assignment;
  * Implements Ant-CP algorithm line 11: update using all max-size assignments.
  */
 public class MaxMinUpdate {
-    private static final Logger logger = LoggerFactory.getLogger(MaxMinUpdate.class);
 
     public PheromoneMatrix update(PheromoneMatrix currentPheromones,
                                   List<Assignment> cycleAssignments,

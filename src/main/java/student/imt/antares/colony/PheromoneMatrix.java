@@ -3,9 +3,6 @@ package student.imt.antares.colony;
 import java.util.*;
 import java.util.function.Function;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import student.imt.antares.problem.Assignment;
 import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
@@ -23,7 +20,6 @@ import student.imt.antares.problem.Variable;
  * </p>
  */
 public final class PheromoneMatrix {
-    private static final Logger logger = LoggerFactory.getLogger(PheromoneMatrix.class);
 
     private final double[] pheromones;
     private final Map<Trail, Integer> trailToIndex;
