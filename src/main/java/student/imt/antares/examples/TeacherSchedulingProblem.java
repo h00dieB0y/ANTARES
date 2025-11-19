@@ -309,36 +309,7 @@ public class TeacherSchedulingProblem {
         }
     }
 
-    /**
-     * Prints the schedule in a readable format.
-     */
     public static void printSchedule(Assignment assignment) {
-        System.out.println("\n=== TEACHER SCHEDULE ===");
-        System.out.println("Assignments (rows = rooms 1..3, columns = time slots 1..3)");
-        System.out.println("         Time1   Time2   Time3");
-        System.out.println("-------------------------------------");
-
-        for (int room = 1; room <= ROOMS; room++) {
-            System.out.printf("Room %d   ", room);
-            for (int time = 1; time <= TIMES; time++) {
-                String varName = "R" + room + "T" + time;
-                Variable var = findVariable(assignment, varName);
-
-                if (var != null) {
-                    Optional<Integer> value = assignment.getValue(var);
-                    if (value.isPresent()) {
-                        String teacher = TEACHER_NAMES[value.get()];
-                        System.out.printf("  %-6s", teacher);
-                    } else {
-                        System.out.print("  ???   ");
-                    }
-                } else {
-                    System.out.print("  ---   ");
-                }
-            }
-            System.out.println();
-        }
-        System.out.println("-------------------------------------");
     }
 
     private static Variable findVariable(Assignment assignment, String name) {
@@ -352,50 +323,9 @@ public class TeacherSchedulingProblem {
         return null;
     }
 
-    /**
-     * Validates and displays constraint satisfaction.
-     */
     public static void validateSchedule(Problem problem, Assignment assignment) {
-        System.out.println("\n=== VALIDATION ===");
-        System.out.println("Complete: " + assignment.isComplete(problem.size()));
-        System.out.println("Valid: " + problem.isSolution(assignment));
-        System.out.println("Variables assigned: " + assignment.size() + "/" + problem.size());
-
-        if (problem.isSolution(assignment)) {
-            System.out.println("\n✓ Valid schedule found!");
-            System.out.println("\nConstraints satisfied:");
-            System.out.println("  ✓ One teacher per room at each time slot");
-            System.out.println("  ✓ Teacher A in Room 1 at Time 1 (Physics)");
-            System.out.println("  ✓ Teacher B not scheduled at Time 3");
-            System.out.println("  ✓ Teacher C teaches in Room 2 at least once");
-            System.out.println("  ✓ Each teacher teaches exactly twice");
-        } else {
-            System.out.println("\n✗ Constraints violated or incomplete");
-        }
     }
 
-    /**
-     * Prints teaching statistics.
-     */
     public static void printStatistics(Assignment assignment) {
-        System.out.println("\n=== STATISTICS ===");
-
-        int[] teacherCounts = new int[4]; // Index 0 unused, 1-3 for teachers A, B, C
-
-        for (int room = 1; room <= ROOMS; room++) {
-            for (int time = 1; time <= TIMES; time++) {
-                String varName = "R" + room + "T" + time;
-                Variable var = findVariable(assignment, varName);
-                if (var != null) {
-                    assignment.getValue(var).ifPresent(teacher -> teacherCounts[teacher]++);
-                }
-            }
-        }
-
-        System.out.println("Teaching load:");
-        for (int teacher = TEACHER_A; teacher <= TEACHER_C; teacher++) {
-            System.out.printf("  Teacher %s: %d sessions\n",
-                            TEACHER_NAMES[teacher], teacherCounts[teacher]);
-        }
     }
 }

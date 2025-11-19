@@ -11,57 +11,25 @@ import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
 import student.imt.antares.solver.AntColonyMetaHeuristicSolver;
 
-/**
- * Test Sudoku solving with Choco Solver + ACO integration.
- *
- * This demonstrates how to use the ChocoCSPSolver class which bridges
- * ANTARES's ACO framework with Choco Solver's constraint propagation.
- */
 public class SudokuChocoTest {
 
     public static void main(String[] args) {
-        System.out.println("=== Sudoku Solver with Choco + ACO ===\n");
-
-        //testEasySudoku();
-        //testMediumSudoku();
         testHardSudoku();
     }
 
-
     private static void testEasySudoku() {
-        System.out.println("--- Easy Sudoku (Choco + ACO) ---");
         int[][] puzzle = createEasyPuzzle();
-
-        System.out.println("Initial puzzle:");
-        printGrid(puzzle);
-        System.out.println();
-
         solveWithChocoACO(puzzle, 500);
-        System.out.println();
     }
 
     private static void testMediumSudoku() {
-        System.out.println("--- Medium Sudoku (Choco + ACO) ---");
         int[][] puzzle = createMediumPuzzle();
-
-        System.out.println("Initial puzzle:");
-        printGrid(puzzle);
-        System.out.println();
-
         solveWithChocoACO(puzzle, 1000);
-        System.out.println();
     }
 
     private static void testHardSudoku() {
-        System.out.println("--- Hard Sudoku (Choco + ACO) ---");
         int[][] puzzle = createHardPuzzle();
-
-        System.out.println("Initial puzzle:");
-        printGrid(puzzle);
-        System.out.println();
-
         solveWithChocoACO(puzzle, 2000);
-        System.out.println();
     }
 
     private static void solveWithChocoACO(int[][] puzzle, int maxRestarts) {
@@ -72,24 +40,16 @@ public class SudokuChocoTest {
         for (int row = 0; row < 9; row++) {
             for (int col = 0; col < 9; col++) {
                 if (puzzle[row][col] != 0) {
-                    // Fixed cell from puzzle
                     grid[row][col] = model.intVar("cell_" + row + "_" + col, puzzle[row][col]);
                 } else {
-                    // Variable cell (domain 1-9)
                     grid[row][col] = model.intVar("cell_" + row + "_" + col, 1, 9);
                 }
             }
         }
-
-        // Constraints: AllDifferent for rows, columns, and 3x3 boxes
-        // (Choco's allDifferent is much simpler than custom constraints!)
-
-        // Row constraints
         for (int row = 0; row < 9; row++) {
             model.allDifferent(grid[row]).post();
         }
 
-        // Column constraints
         for (int col = 0; col < 9; col++) {
             IntVar[] column = new IntVar[9];
             for (int row = 0; row < 9; row++) {
@@ -98,7 +58,6 @@ public class SudokuChocoTest {
             model.allDifferent(column).post();
         }
 
-        // Box constraints (3x3 subgrids)
         for (int boxRow = 0; boxRow < 3; boxRow++) {
             for (int boxCol = 0; boxCol < 3; boxCol++) {
                 IntVar[] box = new IntVar[9];
@@ -112,17 +71,14 @@ public class SudokuChocoTest {
             }
         }
 
-        // ACO parameters (same as standalone ANTARES for fair comparison)
         ACOParameters acoParams = new ACOParameters(
-            2.0,   // alpha (pheromone importance)
-            0.0,   // beta (heuristic importance, 0 = pure pheromone)
-            0.01,  // rho (evaporation rate)
-            0.01,  // tauMin
-            1.0,  // tauMax
-            30     // numberOfAnts per cycle
+            2.0,
+            0.0,
+            0.01,
+            0.01,
+            1.0,
+            30
         );
-
-        // Create ACO metaheuristic strategy
         IntVar[] allVars = model.retrieveIntVars(true);
         AntColonyMetaHeuristicSolver acoStrategy = new AntColonyMetaHeuristicSolver(
             allVars,
@@ -131,60 +87,18 @@ public class SudokuChocoTest {
         );
 
         Solver solver = model.getSolver();
-        solver.setSearch(acoStrategy); // Re-enable ACO strategy
+        solver.setSearch(acoStrategy);
         solver.showShortStatistics();
 
-        // Limit search to prevent infinite loops
         solver.limitRestart(maxRestarts);
 
-        System.out.println("Solving with ACO (max " + maxRestarts + " restarts, 30 ants/cycle)...");
-        long startTime = System.currentTimeMillis();
-
-        if (solver.solve()) {
-            long endTime = System.currentTimeMillis();
-            System.out.println("Solution found!");
-            System.out.println("Time: " + (endTime - startTime) + " ms");
-            System.out.println("Restarts: " + solver.getRestartCount());
-            System.out.println("Failures: " + solver.getFailCount());
-            System.out.println();
-
-            // Print solution
-            printSolution(grid);
-        } else {
-            long endTime = System.currentTimeMillis();
-            System.out.println("No solution found within restart limit");
-            System.out.println("Time: " + (endTime - startTime) + " ms");
-            System.out.println("Restarts: " + solver.getRestartCount());
-            System.out.println("Failures: " + solver.getFailCount());
-        }
+        solver.solve();
     }
 
     private static void printSolution(IntVar[][] grid) {
-        System.out.println("Solution:");
-        for (int row = 0; row < 9; row++) {
-            for (int col = 0; col < 9; col++) {
-                System.out.print(grid[row][col].getValue() + " ");
-                if ((col + 1) % 3 == 0 && col < 8) System.out.print("| ");
-            }
-            System.out.println();
-            if ((row + 1) % 3 == 0 && row < 8) {
-                System.out.println("------+-------+------");
-            }
-        }
     }
 
     private static void printGrid(int[][] grid) {
-        for (int row = 0; row < 9; row++) {
-            for (int col = 0; col < 9; col++) {
-                char ch = grid[row][col] == 0 ? '.' : (char) ('0' + grid[row][col]);
-                System.out.print(ch + " ");
-                if ((col + 1) % 3 == 0 && col < 8) System.out.print("| ");
-            }
-            System.out.println();
-            if ((row + 1) % 3 == 0 && row < 8) {
-                System.out.println("------+-------+------");
-            }
-        }
     }
 
 

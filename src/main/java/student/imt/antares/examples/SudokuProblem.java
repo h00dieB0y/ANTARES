@@ -215,30 +215,9 @@ public class SudokuProblem {
         }
     }
 
-    /**
-     * Prints a Sudoku grid in readable format.
-     */
     public static void printGrid(int[][] grid) {
-        for (int row = 0; row < 9; row++) {
-            if (row % 3 == 0 && row != 0) {
-                System.out.println("------+-------+------");
-            }
-
-            for (int col = 0; col < 9; col++) {
-                if (col % 3 == 0 && col != 0) {
-                    System.out.print("| ");
-                }
-
-                int value = grid[row][col];
-                System.out.print(value == 0 ? ". " : value + " ");
-            }
-            System.out.println();
-        }
     }
 
-    /**
-     * Converts an assignment to a 9x9 grid for display.
-     */
     public static int[][] assignmentToGrid(Assignment assignment) {
         int[][] grid = new int[9][9];
 

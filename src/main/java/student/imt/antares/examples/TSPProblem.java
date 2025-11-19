@@ -73,18 +73,6 @@ public class TSPProblem {
     }
 
     public static void printTour(Assignment assignment) {
-        System.out.print("Tour: ");
-        assignment.getAssignedVariables().stream()
-            .sorted(Comparator.comparingInt(v -> {
-                Object value = assignment.getValue(v).orElseThrow();
-                if (!(value instanceof Integer)) {
-                    throw new IllegalArgumentException(
-                        "Expected Integer position for variable " + v.name() + ", got: " + value.getClass().getSimpleName());
-                }
-                return (Integer) value;
-            }))
-            .forEach(v -> System.out.print(v.name() + " "));
-        System.out.println();
     }
 
     public static double[][] createSampleInstance() {

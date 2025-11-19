@@ -2,8 +2,6 @@ package student.imt.antares.examples;
 
 import org.chocosolver.parser.SetUpException;
 import org.chocosolver.parser.xcsp.XCSP;
-import org.chocosolver.solver.Model;
-import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.search.strategy.selectors.variables.AntiFirstFail;
 import org.chocosolver.solver.variables.IntVar;
 
@@ -12,34 +10,69 @@ import student.imt.antares.solver.AntColonyMetaHeuristicSolver;
 
 public class XCSPTest {
     public static void main(String[] args) throws SetUpException {
-        XCSP xcspExample = new XCSP();
-        xcspExample.setUp(new String[]{"C:\\Users\\anasa\\Downloads\\CarSequencing\\CarSequencing\\CarSequencing-m1-gagne\\CarSequencing-200-01.xml\\CarSequencing-200-01.xml", "-lvl","INFO"});
-        xcspExample.createSolver();
-        xcspExample.buildModel();
-        xcspExample.configureSearch();
-        Model model = xcspExample.getModel();
-        // ACO parameters (same as standalone ANTARES for fair comparison)
-        ACOParameters acoParams = new ACOParameters(
-            2.0,   // alpha (pheromone importance)
-            0.0,   // beta (heuristic importance, 0 = pure pheromone)
-            0.01,  // rho (evaporation rate)
-            0.01,  // tauMin
-            1.0,  // tauMax
-            10    // numberOfAnts per cycle
-        );
+        String path = "/Users/manneemilekitsoukou/Downloads/GraphColoring/GraphColoring-m1-fixed/GraphColoring-qwhdec-o18-h120-1.xml";
+        var defaultAcoParams = ACOParameters.withDefaults();
+        double alpha = defaultAcoParams.alpha();
+        double beta = defaultAcoParams.beta();
+        double rho = defaultAcoParams.rho();
+        double tauMin = defaultAcoParams.tauMin();
+        double tauMax = defaultAcoParams.tauMax();
+        int numberOfAnts = defaultAcoParams.numberOfAnts();
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "-path":
+                    if (i + 1 < args.length) path = args[++i];
+                    break;
+                case "-alpha":
+                    if (i + 1 < args.length) alpha = Double.parseDouble(args[++i]);
+                    break;
+                case "-beta":
+                    if (i + 1 < args.length) beta = Double.parseDouble(args[++i]);
+                    break;
+                case "-rho":
+                    if (i + 1 < args.length) rho = Double.parseDouble(args[++i]);
+                    break;
+                case "-tauMin":
+                    if (i + 1 < args.length) tauMin = Double.parseDouble(args[++i]);
+                    break;
+                case "-tauMax":
+                    if (i + 1 < args.length) tauMax = Double.parseDouble(args[++i]);
+                    break;
+                case "-ants":
+                    if (i + 1 < args.length) numberOfAnts = Integer.parseInt(args[++i]);
+                    break;
+                default:
+                    System.out.println("Unknown argument: " + args[i]);
+            }
+        }
 
-        // Create ACO metaheuristic strategy
-        IntVar[] allVars = model.retrieveIntVars(true);
-        AntColonyMetaHeuristicSolver acoStrategy = new AntColonyMetaHeuristicSolver(
-            allVars,
-            new AntiFirstFail(model),
-            acoParams
-        );
+        XCSP xcspParser = new XCSP();
+        if (xcspParser.setUp(path)) {
+            xcspParser.createSolver();
+            xcspParser.buildModel();
+            xcspParser.configureSearch();
 
-        Solver solver = model.getSolver();
-        solver.limitTime("30s");
-        solver.setSearch(acoStrategy); 
-        // declare ACO    
-        xcspExample.solve();
+            var acoParams = new ACOParameters(
+                    alpha,
+                    beta,
+                    rho,
+                    tauMin,
+                    tauMax,
+                    numberOfAnts
+            );
+
+            var model = xcspParser.getModel();
+            IntVar[] allVars = model.retrieveIntVars(true);
+            var acoStrategy = new AntColonyMetaHeuristicSolver(
+                    allVars,
+                    new AntiFirstFail(model),
+                    acoParams);
+
+            var solver = model.getSolver();
+            solver.limitTime("30s");
+            solver.setSearch(acoStrategy);
+
+            xcspParser.solve();
+        }
     }
 }

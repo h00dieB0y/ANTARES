@@ -3,9 +3,6 @@ package student.imt.antares.construction;
 import java.util.Objects;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.PheromoneMatrix;
 import student.imt.antares.problem.Assignment;
@@ -13,12 +10,7 @@ import student.imt.antares.problem.Problem;
 import student.imt.antares.problem.Variable;
 import student.imt.antares.solver.BasicCSPSolver;
 
-/**
- * Constructs CSP assignments using ant colony optimization.
- * Iteratively selects variables and values guided by pheromone trails.
- */
 public class AssignmentConstructor {
-    private static final Logger logger = LoggerFactory.getLogger(AssignmentConstructor.class);
 
     public Assignment construct(Problem problem,
                                 PheromoneMatrix pheromones,
@@ -34,33 +26,24 @@ public class AssignmentConstructor {
         Objects.requireNonNull(valueSelector, "Value selector cannot be null");
         Objects.requireNonNull(solver, "CSP solver cannot be null");
 
-
         Assignment assignment = Assignment.empty();
-        solver.reset(); // Reset solver state for this ant
+        solver.reset();
 
-        int step = 0;
         while (!assignment.isComplete(problem.size())) {
             var nextVariable = variableSelector.selectNext(problem, assignment, solver);
 
             if (nextVariable.isEmpty()) {
-                logger.debug("No variable selected at step {} - construction failed", step);
                 return assignment;
             }
-
 
             assignment = processVariable(nextVariable.get(), assignment, pheromones,
                                         parameters, valueSelector, solver);
 
             if (solver.hasFailed()) {
-                logger.debug("Construction failed at step {} - {}/{} variables assigned",
-                           step, assignment.size(), problem.size());
                 return assignment;
             }
-
-            step++;
         }
 
-        logger.debug("Construction complete: {}/{} variables assigned", assignment.size(), problem.size());
         return assignment;
     }
 
@@ -72,7 +55,6 @@ public class AssignmentConstructor {
                                            BasicCSPSolver solver) {
         Set<Integer> domain = solver.getCurrentDomain(variable);
 
-
         if (domain.isEmpty()) {
             return assignment;
         }
@@ -83,7 +65,6 @@ public class AssignmentConstructor {
             return assignment;
         }
 
-
         Assignment newAssignment = assignment.assign(variable, selectedValue.get());
 
         if (!solver.propagate(newAssignment)) {
@@ -93,15 +74,6 @@ public class AssignmentConstructor {
         return assignSingletons(newAssignment, solver);
     }
 
-    /**
-     * Automatically assigns all singleton variables (variables with domain size 1)
-     * after constraint propagation.
-     * <p>
-     * Implements Ant-CP algorithm line 9. Singleton assignment is deterministic
-     * and doesn't require ant guidance, so it's performed immediately to reduce
-     * the search space.
-     * </p>
-     */
     private Assignment assignSingletons(Assignment assignment, BasicCSPSolver solver) {
         Assignment current = assignment;
 
@@ -117,7 +89,6 @@ public class AssignmentConstructor {
                 break;
             }
 
-
             for (Variable singletonVar : unassignedSingletons) {
                 current = assignSingleton(singletonVar, current, solver);
 
@@ -130,14 +101,10 @@ public class AssignmentConstructor {
         return current;
     }
 
-    /**
-     * Assigns a single singleton variable to its only possible value.
-     */
     private Assignment assignSingleton(Variable variable, Assignment assignment, BasicCSPSolver solver) {
         Set<Integer> domain = solver.getCurrentDomain(variable);
 
         if (domain.size() != 1) {
-            logger.warn("Variable {} is not a singleton (domain size: {})", variable.name(), domain.size());
             return assignment;
         }
 
