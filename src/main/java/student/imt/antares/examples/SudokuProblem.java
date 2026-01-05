@@ -1,15 +1,9 @@
 package student.imt.antares.examples;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import org.slf4j.Logger;
 
-import student.imt.antares.problem.Assignment;
-import student.imt.antares.problem.Constraint;
-import student.imt.antares.problem.Problem;
-import student.imt.antares.problem.Variable;
+import student.imt.antares.problem.*;
 
 /**
  * Sudoku CSP problem for 9x9 grids.
@@ -19,6 +13,10 @@ import student.imt.antares.problem.Variable;
  * - Box constraints: all different in each 3x3 box
  */
 public class SudokuProblem {
+    
+    private SudokuProblem() {
+        // Private constructor to hide the implicit public one
+    }
 
     /**
      * AllDifferent constraint: ensures all variables have different values.
@@ -40,8 +38,8 @@ public class SudokuProblem {
         public boolean isSatisfiedBy(Assignment assignment) {
             Set<Integer> assignedValues = new HashSet<>();
 
-            for (Variable var : variables) {
-                var value = assignment.getValue(var);
+            for (Variable cellVar : variables) {
+                var value = assignment.getValue(cellVar);
 
                 if (value.isEmpty()) {
                     continue;
@@ -77,8 +75,23 @@ public class SudokuProblem {
     public static Problem create(int[][] initialGrid) {
         validateGrid(initialGrid);
 
+        Variable[][] cells = createVariables(initialGrid);
+        List<Variable> allVariables = flattenCells(cells);
+        List<Constraint> constraints = createAllConstraints(cells);
+
+        return new Problem(allVariables, constraints);
+    }
+
+    /**
+     * Creates a 9x9 grid of variables from the initial puzzle configuration.
+     * Each cell becomes a variable with a domain of either a single fixed value (for given cells)
+     * or all possible values 1-9 (for empty cells).
+     *
+     * @param initialGrid the initial puzzle grid where 0 represents empty cells
+     * @return 9x9 array of variables representing the Sudoku grid
+     */
+    private static Variable[][] createVariables(int[][] initialGrid) {
         Variable[][] cells = new Variable[9][9];
-        List<Variable> allVariables = new ArrayList<>();
 
         for (int row = 0; row < 9; row++) {
             for (int col = 0; col < 9; col++) {
@@ -89,12 +102,53 @@ public class SudokuProblem {
 
                 String cellName = "R" + row + "C" + col;
                 cells[row][col] = new Variable(cellName, domain);
-                allVariables.add(cells[row][col]);
             }
         }
 
-        List<Constraint> constraints = new ArrayList<>();
+        return cells;
+    }
 
+    /**
+     * Flattens the 2D grid of variables into a single list.
+     * This is needed for the Problem constructor which expects a flat collection of variables.
+     *
+     * @param cells 9x9 grid of variables
+     * @return list containing all 81 variables in row-major order
+     */
+    private static List<Variable> flattenCells(Variable[][] cells) {
+        List<Variable> allVariables = new ArrayList<>();
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                allVariables.add(cells[row][col]);
+            }
+        }
+        return allVariables;
+    }
+
+    /**
+     * Creates all Sudoku constraints (rows, columns, and 3x3 boxes).
+     * A standard 9x9 Sudoku has 27 AllDifferent constraints: 9 rows, 9 columns, and 9 boxes.
+     *
+     * @param cells 9x9 grid of variables
+     * @return list of all 27 Sudoku constraints
+     */
+    private static List<Constraint> createAllConstraints(Variable[][] cells) {
+        List<Constraint> constraints = new ArrayList<>();
+        constraints.addAll(createRowConstraints(cells));
+        constraints.addAll(createColumnConstraints(cells));
+        constraints.addAll(createBoxConstraints(cells));
+        return constraints;
+    }
+
+    /**
+     * Creates AllDifferent constraints for each row.
+     * Each of the 9 rows must contain distinct values from 1-9.
+     *
+     * @param cells 9x9 grid of variables
+     * @return list of 9 row constraints
+     */
+    private static List<Constraint> createRowConstraints(Variable[][] cells) {
+        List<Constraint> constraints = new ArrayList<>();
         for (int row = 0; row < 9; row++) {
             Set<Variable> rowVars = new HashSet<>();
             for (int col = 0; col < 9; col++) {
@@ -102,7 +156,18 @@ public class SudokuProblem {
             }
             constraints.add(new AllDifferentConstraint(rowVars, "Row" + row));
         }
+        return constraints;
+    }
 
+    /**
+     * Creates AllDifferent constraints for each column.
+     * Each of the 9 columns must contain distinct values from 1-9.
+     *
+     * @param cells 9x9 grid of variables
+     * @return list of 9 column constraints
+     */
+    private static List<Constraint> createColumnConstraints(Variable[][] cells) {
+        List<Constraint> constraints = new ArrayList<>();
         for (int col = 0; col < 9; col++) {
             Set<Variable> colVars = new HashSet<>();
             for (int row = 0; row < 9; row++) {
@@ -110,7 +175,19 @@ public class SudokuProblem {
             }
             constraints.add(new AllDifferentConstraint(colVars, "Col" + col));
         }
+        return constraints;
+    }
 
+    /**
+     * Creates AllDifferent constraints for each 3x3 box.
+     * Each of the 9 boxes must contain distinct values from 1-9.
+     * Boxes are numbered left-to-right, top-to-bottom.
+     *
+     * @param cells 9x9 grid of variables
+     * @return list of 9 box constraints
+     */
+    private static List<Constraint> createBoxConstraints(Variable[][] cells) {
+        List<Constraint> constraints = new ArrayList<>();
         for (int boxRow = 0; boxRow < 3; boxRow++) {
             for (int boxCol = 0; boxCol < 3; boxCol++) {
                 Set<Variable> boxVars = new HashSet<>();
@@ -124,8 +201,7 @@ public class SudokuProblem {
                 constraints.add(new AllDifferentConstraint(boxVars, "Box" + boxRow + boxCol));
             }
         }
-
-        return new Problem(allVariables, constraints);
+        return constraints;
     }
 
     /**
@@ -216,19 +292,35 @@ public class SudokuProblem {
     }
 
     public static void printGrid(int[][] grid) {
+        Logger logger = org.slf4j.LoggerFactory.getLogger(SudokuProblem.class);
+        for (int row = 0; row < 9; row++) {
+            if (row % 3 == 0 && row != 0) {
+                logger.info("------+-------+------");
+            }
+            StringBuilder line = new StringBuilder();
+            for (int col = 0; col < 9; col++) {
+                if (col % 3 == 0 && col != 0) {
+                    line.append("| ");
+                }
+                line.append(grid[row][col]).append(" ");
+            }
+            if (logger.isInfoEnabled()) {
+                logger.info(line.toString());
+            }
+        }
     }
 
     public static int[][] assignmentToGrid(Assignment assignment) {
         int[][] grid = new int[9][9];
 
-        for (Variable var : assignment.getAssignedVariables()) {
-            String name = var.name();
+        for (Variable cellVar : assignment.getAssignedVariables()) {
+            String name = cellVar.name();
             int row = Character.getNumericValue(name.charAt(1));
             int col = Character.getNumericValue(name.charAt(3));
 
-            assignment.getValue(var).ifPresent(value -> {
-                grid[row][col] = value;
-            });
+            assignment.getValue(cellVar).ifPresent(value -> 
+                grid[row][col] = value
+            );
         }
 
         return grid;
