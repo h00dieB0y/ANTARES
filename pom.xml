@@ -41,7 +41,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>${exec.maven.plugin.version}</version>
                 <configuration>
-                    <mainClass>student.imt.antares.examples.SudokuChocoTest</mainClass>
+                    <mainClass>student.imt.antares.examples.XCSPTest</mainClass>
                 </configuration>
             </plugin>
         </plugins>
