@@ -21,6 +21,10 @@ import student.imt.antares.problem.Variable;
  */
 public class TeacherSchedulingProblem {
 
+    private TeacherSchedulingProblem() {
+        // Prevent instantiation
+    }
+
     // Teachers
     public static final int TEACHER_A = 1;
     public static final int TEACHER_B = 2;
@@ -30,6 +34,7 @@ public class TeacherSchedulingProblem {
 
     private static final int ROOMS = 3;
     private static final int TIMES = 3;
+    private static final String COLUMN_FORMAT = "%-10s";
 
     /**
      * Creates the teacher scheduling CSP problem.
@@ -43,9 +48,9 @@ public class TeacherSchedulingProblem {
             for (int time = 1; time <= TIMES; time++) {
                 Set<Integer> domain = getDomain(room, time);
                 String varName = "R" + room + "T" + time;
-                Variable var = new Variable(varName, domain);
-                schedule[room][time] = var;
-                variables.add(var);
+                Variable slot = new Variable(varName, domain);
+                schedule[room][time] = slot;
+                variables.add(slot);
             }
         }
 
@@ -114,24 +119,24 @@ public class TeacherSchedulingProblem {
      * Constraint: Variable must have a specific fixed value.
      */
     private static class FixedAssignmentConstraint implements Constraint {
-        private final Variable var;
+        private final Variable slot;
         private final int value;
         private final String name;
 
-        public FixedAssignmentConstraint(Variable var, int value, String name) {
-            this.var = var;
+        public FixedAssignmentConstraint(Variable slot, int value, String name) {
+            this.slot = slot;
             this.value = value;
             this.name = name;
         }
 
         @Override
         public boolean isSatisfiedBy(Assignment assignment) {
-            return assignment.getValue(var).map(v -> v == value).orElse(true);
+            return assignment.getValue(slot).map(v -> v == value).orElse(true);
         }
 
         @Override
         public Set<Variable> getInvolvedVariables() {
-            return Set.of(var);
+            return Set.of(slot);
         }
 
         @Override
@@ -144,24 +149,24 @@ public class TeacherSchedulingProblem {
      * Constraint: Variable cannot have a specific value.
      */
     private static class ForbiddenValueConstraint implements Constraint {
-        private final Variable var;
+        private final Variable slot;
         private final int forbiddenValue;
         private final String name;
 
-        public ForbiddenValueConstraint(Variable var, int forbiddenValue, String name) {
-            this.var = var;
+        public ForbiddenValueConstraint(Variable slot, int forbiddenValue, String name) {
+            this.slot = slot;
             this.forbiddenValue = forbiddenValue;
             this.name = name;
         }
 
         @Override
         public boolean isSatisfiedBy(Assignment assignment) {
-            return assignment.getValue(var).map(v -> v != forbiddenValue).orElse(true);
+            return assignment.getValue(slot).map(v -> v != forbiddenValue).orElse(true);
         }
 
         @Override
         public Set<Variable> getInvolvedVariables() {
-            return Set.of(var);
+            return Set.of(slot);
         }
 
         @Override
@@ -186,8 +191,8 @@ public class TeacherSchedulingProblem {
         public boolean isSatisfiedBy(Assignment assignment) {
             Set<Integer> seenValues = new HashSet<>();
 
-            for (Variable var : variables) {
-                Optional<Integer> value = assignment.getValue(var);
+            for (Variable constrainedVar : variables) {
+                Optional<Integer> value = assignment.getValue(constrainedVar);
                 if (value.isPresent()) {
                     if (seenValues.contains(value.get())) {
                         return false; // Duplicate found
@@ -229,8 +234,8 @@ public class TeacherSchedulingProblem {
             boolean allAssigned = true;
             boolean foundValue = false;
 
-            for (Variable var : variables) {
-                Optional<Integer> value = assignment.getValue(var);
+            for (Variable slotVar : variables) {
+                Optional<Integer> value = assignment.getValue(slotVar);
                 if (value.isEmpty()) {
                     allAssigned = false;
                 } else if (value.get() == requiredValue) {
@@ -280,8 +285,8 @@ public class TeacherSchedulingProblem {
             int count = 0;
             boolean allAssigned = true;
 
-            for (Variable var : variables) {
-                Optional<Integer> value = assignment.getValue(var);
+            for (Variable slotVar : variables) {
+                Optional<Integer> value = assignment.getValue(slotVar);
                 if (value.isEmpty()) {
                     allAssigned = false;
                 } else if (value.get() == targetValue) {
@@ -310,22 +315,49 @@ public class TeacherSchedulingProblem {
     }
 
     public static void printSchedule(Assignment assignment) {
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TeacherSchedulingProblem.class);
+        
+        logger.info("Teacher Schedule:");
+        logger.info("=================");
+        logger.info("");
+        
+        // Print header
+        logger.info("        Time 1    Time 2    Time 3");
+        logger.info("--------------------------------------");
+        
+        // Print each room
+        for (int room = 1; room <= ROOMS; room++) {
+            StringBuilder line = new StringBuilder();
+            line.append(String.format("Room %d: ", room));
+            
+            for (int time = 1; time <= TIMES; time++) {
+                String varName = "R" + room + "T" + time;
+                Variable slotVar = findVariable(assignment, varName);
+                
+                if (slotVar != null) {
+                    assignment.getValue(slotVar).ifPresentOrElse(
+                        teacherId -> line.append(String.format(COLUMN_FORMAT, "Teacher " + TEACHER_NAMES[teacherId])),
+                        () -> line.append(COLUMN_FORMAT.formatted("---"))
+                    );
+                } else {
+                    line.append(COLUMN_FORMAT.formatted("---"));
+                }
+            }
+            
+            if (logger.isInfoEnabled()) {
+                logger.info(line.toString());
+            }
+        }
+        
+        logger.info("");
     }
 
     private static Variable findVariable(Assignment assignment, String name) {
-        for (Variable var : assignment.getAssignedVariables()) {
-            if (var.name().equals(name)) {
-                @SuppressWarnings("unchecked")
-                Variable intVar = (Variable) var;
-                return intVar;
+        for (Variable assignedVar : assignment.getAssignedVariables()) {
+            if (assignedVar.name().equals(name)) {
+                return assignedVar;
             }
         }
         return null;
-    }
-
-    public static void validateSchedule(Problem problem, Assignment assignment) {
-    }
-
-    public static void printStatistics(Assignment assignment) {
     }
 }
