@@ -5,6 +5,7 @@ import org.chocosolver.solver.exception.ContradictionException;
 import org.chocosolver.solver.search.limits.FailCounter;
 import org.chocosolver.solver.search.loop.monitors.*;
 import org.chocosolver.solver.search.restart.*;
+import org.chocosolver.solver.search.restart.Restarter;
 import org.chocosolver.solver.search.strategy.assignments.DecisionOperatorFactory;
 import org.chocosolver.solver.search.strategy.decision.Decision;
 import org.chocosolver.solver.search.strategy.selectors.variables.VariableSelector;
@@ -36,8 +37,6 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
     private int currentAnt;
     private int currentCycle;
 
-    private List<ChocoDecision> currentPath;
-
     private List<Assignment> cycleSolutions;
 
     private Assignment bestOverall;
@@ -45,9 +44,20 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
     private SolutionProgress bestProgress;
     private List<SolutionProgress> progressHistory;
 
+    // Track the deepest assignment reached by current ant
+    private Assignment currentAntBestAssignment;
+    private int currentAntMaxDepth;
+
     public AntColonyMetaHeuristicSolver(IntVar[] variables,
             VariableSelector<IntVar> variableSelector,
             ACOParameters parameters) {
+        this(variables, variableSelector, parameters, System.currentTimeMillis());
+    }
+
+    public AntColonyMetaHeuristicSolver(IntVar[] variables,
+            VariableSelector<IntVar> variableSelector,
+            ACOParameters parameters,
+            long seed) {
         super(variables);
         this.model = variables[0].getModel();
         this.variableSelector = variableSelector;
@@ -56,23 +66,27 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         this.adapter = new IntVarAdapter(variables);
 
         this.pheromones = PheromoneMatrix.initialize(adapter.getProblem(), parameters.tauMax());
-        this.valueSelector = new ProbabilisticSelection();
+        this.valueSelector = new ProbabilisticSelection(seed);
         this.pheromoneUpdater = new MaxMinUpdate();
 
         this.currentAnt = 0;
         this.currentCycle = 0;
-        this.currentPath = new ArrayList<>();
         this.cycleSolutions = new ArrayList<>();
         this.bestOverall = Assignment.empty();
         this.solutionFoundByCurrentAnt = false;
         this.bestProgress = new SolutionProgress(0, 0, Assignment.empty());
         this.progressHistory = new ArrayList<>();
+        this.currentAntBestAssignment = Assignment.empty();
+        this.currentAntMaxDepth = 0;
 
-        model.getSolver().setRestartOnSolutions();
+        // Each ant gets a fixed budget: 50 failures per variable
+        // This scales linearly with problem size, ensuring consistent exploration depth
+        int failureLimit = vars.length * 50;
         model.getSolver().addRestarter(new Restarter(
-                new MonotonicCutoff(100),
-                new FailCounter(model, 1),
-                Integer.MAX_VALUE, false));
+                new GeometricalCutoff(failureLimit, 1.00001),  // Scale factor 1.0 = constant cutoff
+                new FailCounter(model, failureLimit),
+                Integer.MAX_VALUE,
+                false));
     }
 
     @Override
@@ -95,8 +109,8 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
 
     @Override
     public Decision<IntVar> getDecision() {
-        return computeDecision(
-                variableSelector.getVariable(vars));
+        IntVar selectedVar = variableSelector.getVariable(vars);
+        return computeDecision(selectedVar);
     }
 
     private Decision<IntVar> buildEqualsDecision(IntVar variable, int value) {
@@ -106,6 +120,9 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
 
     @Override
     public Decision<IntVar> computeDecision(IntVar intVar) {
+        // Always track current depth before making a decision
+        updateCurrentAntBestAssignment();
+
         if (intVar == null || intVar.isInstantiated()) {
             return null;
         }
@@ -118,9 +135,21 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
 
         int value = selectedValue.get();
 
-        currentPath.add(new ChocoDecision(intVar, value));
-
         return buildEqualsDecision(intVar, value);
+    }
+
+    private void updateCurrentAntBestAssignment() {
+        int currentDepth = 0;
+        for (IntVar var : vars) {
+            if (var.isInstantiated()) {
+                currentDepth++;
+            }
+        }
+
+        if (currentDepth > currentAntMaxDepth) {
+            currentAntMaxDepth = currentDepth;
+            currentAntBestAssignment = captureCurrentAssignment();
+        }
     }
 
     private Optional<Integer> selectValue(IntVar intVar) {
@@ -134,20 +163,60 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         return valueSelector.select(variable, domain, pheromones, parameters);
     }
 
+    private Assignment captureCurrentAssignment() {
+        Assignment assignment = Assignment.empty();
+
+        for (IntVar var : vars) {
+            if (var.isInstantiated()) {
+                Variable variable = adapter.toVariable(var);
+                if (variable != null) {
+                    assignment = assignment.assign(variable, var.getValue());
+                }
+            }
+        }
+
+        return assignment;
+    }
+
     @Override
     public void onSolution() {
         this.solutionFoundByCurrentAnt = true;
-        Assignment assignment = adapter.toAssignment(currentPath);
+        Assignment assignment = captureCurrentAssignment();
         cycleSolutions.add(assignment);
 
         if (assignment.size() >= bestOverall.size()) {
             bestOverall = assignment.snapshot();
             bestProgress = new SolutionProgress(currentCycle, assignment.size(), bestOverall);
+
+            // If complete solution found, update pheromones immediately
+            // because search will stop and afterRestart() won't be called
+            if (assignment.size() == adapter.getProblem().size()) {
+                currentAnt++;  // Count this successful ant
+
+                performCycleUpdate();
+                progressHistory.add(bestProgress);
+
+                // Note: For CSP, Choco stops here. No more ants/cycles will run.
+            }
         }
-    }    
+    }
 
     @Override
     public void afterRestart() {
+        // Use the deepest assignment reached by this ant (if not already captured in onSolution)
+        if (!this.solutionFoundByCurrentAnt) {
+            // Use the deepest assignment tracked during search
+            Assignment antAssignment = currentAntBestAssignment;
+            if (antAssignment.size() > 0) {
+                cycleSolutions.add(antAssignment);
+
+                if (antAssignment.size() > bestOverall.size()) {
+                    bestOverall = antAssignment.snapshot();
+                    bestProgress = new SolutionProgress(currentCycle, antAssignment.size(), bestOverall);
+                }
+            }
+        }
+
         currentAnt++;
 
         if (currentAnt >= parameters.numberOfAnts()) {
@@ -157,21 +226,16 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
             currentCycle++;
         }
 
-        currentPath.clear();
+        // Reset tracking for next ant
         this.solutionFoundByCurrentAnt = false;
+        this.currentAntBestAssignment = Assignment.empty();
+        this.currentAntMaxDepth = 0;
     }
 
     @Override
     public void onContradiction(ContradictionException cex) {
-        if (!this.solutionFoundByCurrentAnt && !currentPath.isEmpty()) {
-            Assignment partialAssignment = adapter.toAssignment(currentPath);
-            cycleSolutions.add(partialAssignment);
-
-            if (partialAssignment.size() > bestOverall.size()) {
-                bestOverall = partialAssignment.snapshot();
-                bestProgress = new SolutionProgress(currentCycle, partialAssignment.size(), bestOverall);
-            }
-        }
+        // Contradictions are handled naturally by Choco's backtracking
+        // No action needed here - assignment capture happens in afterRestart()
     }
 
     private void performCycleUpdate() {
@@ -193,21 +257,47 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         return List.copyOf(progressHistory);
     }
 
-    private record SolutionProgress(int cycle, int assignedVariables, Assignment assignment) {
-        @Override
-        public String toString() {
-            return String.format("Cycle %d: %d variables assigned", cycle, assignedVariables);
+    public void printProgressCSV() {
+        System.out.println("cycle,assigned_variables,total_variables,completion_rate");
+        int totalVars = adapter.getProblem().size();
+        for (var progress : progressHistory) {
+            double completionRate = (double) progress.assignedVariables() / totalVars;
+            System.out.printf(java.util.Locale.US, "%d,%d,%d,%.4f%n",
+                    progress.cycle(),
+                    progress.assignedVariables(),
+                    totalVars,
+                    completionRate);
         }
     }
 
-    private record ChocoDecision(IntVar variable, int value) {
-        public ChocoDecision {
-            Objects.requireNonNull(variable, "Variable cannot be null");
-        }
+    public void printSummaryCSV(long seed, String problemName, ACOParameters params,
+            long runtimeMs, int totalCycles) {
+        int totalVars = adapter.getProblem().size();
+        int finalAssigned = bestProgress.assignedVariables();
+        int bestCycle = bestProgress.cycle();
+        boolean success = (finalAssigned == totalVars);
 
+        System.err.printf(java.util.Locale.US, "%d,%s,%d,%.2f,%.2f,%.2f,%.4f,%.2f,%d,%d,%d,%b,%d,%d%n",
+                seed,
+                problemName,
+                totalVars,
+                params.alpha(),
+                params.beta(),
+                params.rho(),
+                params.tauMin(),
+                params.tauMax(),
+                params.numberOfAnts(),
+                bestCycle,
+                finalAssigned,
+                success,
+                totalCycles,
+                runtimeMs);
+    }
+
+    public record SolutionProgress(int cycle, int assignedVariables, Assignment assignment) {
         @Override
         public String toString() {
-            return String.format("%s=%d", variable.getName(), value);
+            return String.format("Cycle %d: %d variables assigned", cycle, assignedVariables);
         }
     }
 
@@ -246,17 +336,6 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
 
         public Problem getProblem() {
             return problem;
-        }
-
-        public Assignment toAssignment(List<ChocoDecision> decisions) {
-            Assignment assignment = Assignment.empty();
-            for (ChocoDecision decision : decisions) {
-                Variable variable = toVariable(decision.variable());
-                if (variable != null) {
-                    assignment = assignment.assign(variable, decision.value());
-                }
-            }
-            return assignment;
         }
 
         private Set<Integer> extractDomain(IntVar intVar) {
