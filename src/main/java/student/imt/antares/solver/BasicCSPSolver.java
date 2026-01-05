@@ -29,8 +29,8 @@ public class BasicCSPSolver {
         currentDomains.clear();
         failed = false;
 
-        for (Variable var : problem.getVariables()) {
-            currentDomains.put(var, Set.copyOf(var.domain()));
+        for (Variable problemVar : problem.getVariables()) {
+            currentDomains.put(problemVar, Set.copyOf(problemVar.domain()));
         }
     }
 
@@ -66,7 +66,7 @@ public class BasicCSPSolver {
         return currentDomains.entrySet().stream()
                 .filter(entry -> entry.getValue().size() == 1)
                 .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private boolean propagateConstraint(Constraint constraint, Assignment assignment) {
@@ -79,11 +79,10 @@ public class BasicCSPSolver {
             return constraint.isSatisfiedBy(assignment);
         }
 
-        for (Variable var : involvedVars) {
-            if (!assignment.isAssigned(var)) {
-                if (!reduceDomain(var, constraint, assignment)) {
-                    return false;
-                }
+        for (Variable involvedVar : involvedVars) {
+            if (!assignment.isAssigned(involvedVar) &&
+                    !reduceDomain(involvedVar, constraint, assignment)) {
+                return false;
             }
         }
 
