@@ -1,7 +1,7 @@
 package student.imt.antares.colony;
 
 import java.util.*;
-import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
 
 import student.imt.antares.problem.Assignment;
 import student.imt.antares.problem.Problem;
@@ -35,8 +35,8 @@ public final class PheromoneMatrix {
         Map<Trail, Integer> indexMap = new HashMap<>();
         int index = 0;
 
-        for (Variable var : problem.getVariables()) {
-            index = addTrailsForVariable(var, indexMap, index);
+        for (Variable problemVar : problem.getVariables()) {
+            index = addTrailsForVariable(problemVar, indexMap, index);
         }
 
         double[] pheromones = new double[index];
@@ -45,10 +45,10 @@ public final class PheromoneMatrix {
         return new PheromoneMatrix(pheromones, indexMap);
     }
 
-    private static int addTrailsForVariable(Variable var, Map<Trail, Integer> indexMap, int startIndex) {
+    private static int addTrailsForVariable(Variable variable, Map<Trail, Integer> indexMap, int startIndex) {
         int index = startIndex;
-        for (Integer value : var.domain()) {
-            indexMap.put(new Trail(var, value), index++);
+        for (Integer value : variable.domain()) {
+            indexMap.put(new Trail(variable, value), index++);
         }
         return index;
     }
@@ -103,9 +103,9 @@ public final class PheromoneMatrix {
      * @return this instance (for fluent method chaining)
      * @throws IllegalArgumentException if any calculated amount is not positive
      */
-    public PheromoneMatrix depositMultiple(List<Assignment> assignments, Function<Assignment, Double> amountFunction) {
+    public PheromoneMatrix depositMultiple(List<Assignment> assignments, ToDoubleFunction<Assignment> amountFunction) {
         for (Assignment assignment : assignments) {
-            double amount = amountFunction.apply(assignment);
+            double amount = amountFunction.applyAsDouble(assignment);
             validatePositive(amount, "Deposit amount");
             depositOnTrails(assignment, amount);
         }
@@ -136,9 +136,9 @@ public final class PheromoneMatrix {
     }
 
     private void depositOnTrails(Assignment assignment, double amount) {
-        for (Variable var : assignment.getAssignedVariables()) {
-            assignment.getValue(var).ifPresent(value -> {
-                Trail trail = new Trail(var, value);
+        for (Variable assignedVar : assignment.getAssignedVariables()) {
+            assignment.getValue(assignedVar).ifPresent(value -> {
+                Trail trail = new Trail(assignedVar, value);
                 Integer index = trailToIndex.get(trail);
                 if (index != null) {
                     pheromones[index] += amount;
