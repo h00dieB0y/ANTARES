@@ -5,15 +5,13 @@ import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.search.strategy.selectors.variables.AntiFirstFail;
 import org.chocosolver.solver.variables.IntVar;
 import student.imt.antares.colony.ACOParameters;
-import student.imt.antares.construction.ProbabilisticSelection;
-import student.imt.antares.problem.Assignment;
-import student.imt.antares.problem.Problem;
-import student.imt.antares.problem.Variable;
 import student.imt.antares.solver.AntColonyMetaHeuristicSolver;
 
 public class SudokuChocoTest {
 
     public static void main(String[] args) {
+        testEasySudoku();
+        testMediumSudoku();
         testHardSudoku();
     }
 
@@ -32,44 +30,15 @@ public class SudokuChocoTest {
         solveWithChocoACO(puzzle, 2000);
     }
 
-    private static void solveWithChocoACO(int[][] puzzle, int maxRestarts) {
+    private static void solveWithChocoACO(int[][] puzzle, int maxCycles) {
         Model model = new Model("Sudoku");
 
-        // Create 9x9 grid of IntVars with domains 1-9
+
         IntVar[][] grid = new IntVar[9][9];
-        for (int row = 0; row < 9; row++) {
-            for (int col = 0; col < 9; col++) {
-                if (puzzle[row][col] != 0) {
-                    grid[row][col] = model.intVar("cell_" + row + "_" + col, puzzle[row][col]);
-                } else {
-                    grid[row][col] = model.intVar("cell_" + row + "_" + col, 1, 9);
-                }
-            }
-        }
-        for (int row = 0; row < 9; row++) {
-            model.allDifferent(grid[row]).post();
-        }
-
-        for (int col = 0; col < 9; col++) {
-            IntVar[] column = new IntVar[9];
-            for (int row = 0; row < 9; row++) {
-                column[row] = grid[row][col];
-            }
-            model.allDifferent(column).post();
-        }
-
-        for (int boxRow = 0; boxRow < 3; boxRow++) {
-            for (int boxCol = 0; boxCol < 3; boxCol++) {
-                IntVar[] box = new IntVar[9];
-                int idx = 0;
-                for (int row = boxRow * 3; row < boxRow * 3 + 3; row++) {
-                    for (int col = boxCol * 3; col < boxCol * 3 + 3; col++) {
-                        box[idx++] = grid[row][col];
-                    }
-                }
-                model.allDifferent(box).post();
-            }
-        }
+        createGrid(grid, puzzle, model);
+        sudokuConstraints(grid, model);
+        rowColumnConstraints(grid, model);
+        boxConstraints(grid, model);
 
         ACOParameters acoParams = new ACOParameters(
             2.0,
@@ -90,15 +59,62 @@ public class SudokuChocoTest {
         solver.setSearch(acoStrategy);
         solver.showShortStatistics();
 
-        solver.limitRestart(maxRestarts);
+        // Calculate total restarts needed: numberOfAnts × maxCycles
+        int totalRestarts = acoParams.numberOfAnts() * maxCycles;
+        solver.limitRestart(totalRestarts);
 
         solver.solve();
     }
 
+    private static void createGrid(IntVar[][] grid, int[][] puzzle, Model model) {
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                if (puzzle[row][col] != 0) {
+                    grid[row][col] = model.intVar("cell_" + row + "_" + col, puzzle[row][col]);
+                } else {
+                    grid[row][col] = model.intVar("cell_" + row + "_" + col, 1, 9);
+                }
+            }
+        }
+    }
+
+    private static void sudokuConstraints(IntVar[][] grid, Model model) {
+        for (int row = 0; row < 9; row++) {
+            model.allDifferent(grid[row]).post();
+        }
+    }
+
+    private static void rowColumnConstraints(IntVar[][] grid, Model model) {
+        for (int col = 0; col < 9; col++) {
+            IntVar[] column = new IntVar[9];
+            for (int row = 0; row < 9; row++) {
+                column[row] = grid[row][col];
+            }
+            model.allDifferent(column).post();
+        }
+    }
+
+    private static void boxConstraints(IntVar[][] grid, Model model) {
+        for (int boxRow = 0; boxRow < 3; boxRow++) {
+            for (int boxCol = 0; boxCol < 3; boxCol++) {
+                IntVar[] box = new IntVar[9];
+                int idx = 0;
+                for (int row = boxRow * 3; row < boxRow * 3 + 3; row++) {
+                    for (int col = boxCol * 3; col < boxCol * 3 + 3; col++) {
+                        box[idx++] = grid[row][col];
+                    }
+                }
+                model.allDifferent(box).post();
+            }
+        }
+    }
+
     private static void printSolution(IntVar[][] grid) {
+        // TODO : Remember to remove this method if not used
     }
 
     private static void printGrid(int[][] grid) {
+        // TODO : Remember to remove this method if not used
     }
 
 
