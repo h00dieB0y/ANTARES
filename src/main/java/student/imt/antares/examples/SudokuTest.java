@@ -1,5 +1,8 @@
 package student.imt.antares.examples;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.Colony;
 import student.imt.antares.construction.AssignmentConstructor;
@@ -11,6 +14,8 @@ import student.imt.antares.problem.Problem;
 import student.imt.antares.solver.BasicCSPSolver;
 
 public class SudokuTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(SudokuTest.class);
 
     public static void main(String[] args) {
         testEasySudoku();
@@ -56,12 +61,24 @@ public class SudokuTest {
         MaxMinUpdate pheromoneUpdater = new MaxMinUpdate();
         BasicCSPSolver solver = new BasicCSPSolver(problem);
 
-        Assignment solution = colony.solve(problem, constructor, VariableSelectors.SMALLEST_DOMAIN_FIRST,
+        return colony.solve(problem, constructor, VariableSelectors.SMALLEST_DOMAIN_FIRST,
                                           valueSelector, pheromoneUpdater, solver, maxCycles);
-
-        return solution;
     }
 
     private static void printResult(Problem problem, Assignment solution) {
+        if (solution == null) {
+            logger.info("No solution found!");
+            return;
+        }
+
+        if (!problem.isConsistent(solution)) {
+            logger.warn("Solution is inconsistent!");
+            return;
+        }
+
+        logger.info("Solution found!");
+        int[][] grid = SudokuProblem.assignmentToGrid(solution);
+        SudokuProblem.printGrid(grid);
+        logger.info("");
     }
 }
