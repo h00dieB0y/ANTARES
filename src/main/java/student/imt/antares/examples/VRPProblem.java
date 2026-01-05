@@ -5,6 +5,8 @@ import student.imt.antares.problem.*;
 
 public class VRPProblem {
 
+    private VRPProblem() {}
+
     // Représente une affectation d'un client à un véhicule
     public static class ClientAssignment {
         public final int client;
@@ -76,7 +78,7 @@ public class VRPProblem {
             constraints.add(new CapacityConstraint(v, vehicleCaps[v], demands, clientVars));
         }
         // Chaque client doit être affecté à un véhicule
-        for (Variable var : clientVars) constraints.add(new MustServeConstraint(var));
+        for (Variable clientVariable : clientVars) constraints.add(new MustServeConstraint(clientVariable));
 
         return new Problem(clientVars, constraints);
     }
@@ -86,9 +88,9 @@ public class VRPProblem {
         double sum = 0;
         for (int v = 0; v < nVehicles; v++) {
             List<Integer> route = new ArrayList<>();
-            for (Variable var : assign.getAssignedVariables()) {
-                int cli = Integer.parseInt(var.name().substring(6)); // "ClientX"
-                Optional<Integer> vehicleOpt = assign.getValue(var);
+            for (Variable variable : assign.getAssignedVariables()) {
+                int cli = Integer.parseInt(variable.name().substring(6)); // "ClientX"
+                Optional<Integer> vehicleOpt = assign.getValue(variable);
                 if (vehicleOpt.isPresent() && vehicleOpt.get() == v) {
                     route.add(cli);
                 }
