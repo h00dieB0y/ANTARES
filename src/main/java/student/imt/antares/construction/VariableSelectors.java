@@ -16,6 +16,8 @@ import java.util.Optional;
  */
 public class VariableSelectors {
 
+    private static final Random RANDOM_INSTANCE = new Random();
+
     private VariableSelectors() {
         // Prevent instantiation
     }
@@ -28,7 +30,7 @@ public class VariableSelectors {
      * </p>
      */
     public static final VariableSelector SMALLEST_DOMAIN_FIRST = (problem, assignment, solver) -> problem.getVariables().stream()
-            .filter(var -> !assignment.isAssigned(var))
+            .filter(variable -> !assignment.isAssigned(variable))
             .min((v1, v2) -> Integer.compare(solver.getCurrentDomain(v1).size(), solver.getCurrentDomain(v2).size()));
 
     /**
@@ -39,12 +41,12 @@ public class VariableSelectors {
      */
     public static final VariableSelector RANDOM = (problem, assignment, solver) -> {
         List<Variable> unassigned = problem.getVariables().stream()
-            .filter(var -> !assignment.isAssigned(var))
+            .filter(variable -> !assignment.isAssigned(variable))
             .toList();
 
         if (unassigned.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(unassigned.get(new Random().nextInt(unassigned.size())));
+        return Optional.of(unassigned.get(RANDOM_INSTANCE.nextInt(unassigned.size())));
     };
 }
