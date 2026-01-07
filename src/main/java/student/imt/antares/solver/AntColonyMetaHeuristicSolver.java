@@ -5,12 +5,12 @@ import org.chocosolver.solver.exception.ContradictionException;
 import org.chocosolver.solver.search.limits.FailCounter;
 import org.chocosolver.solver.search.loop.monitors.*;
 import org.chocosolver.solver.search.restart.*;
-import org.chocosolver.solver.search.restart.Restarter;
 import org.chocosolver.solver.search.strategy.assignments.DecisionOperatorFactory;
 import org.chocosolver.solver.search.strategy.decision.Decision;
 import org.chocosolver.solver.search.strategy.selectors.variables.VariableSelector;
 import org.chocosolver.solver.search.strategy.strategy.AbstractStrategy;
 import org.chocosolver.solver.variables.IntVar;
+import org.chocosolver.util.criteria.Criterion;
 
 import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.PheromoneMatrix;
@@ -29,6 +29,7 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
     private final VariableSelector<IntVar> variableSelector;
     private final IntVarAdapter adapter;
     private final ACOParameters parameters;
+    private final int maxCycles;
 
     private final PheromoneMatrix pheromones;
     private final ProbabilisticSelection valueSelector;
@@ -50,18 +51,21 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
 
     public AntColonyMetaHeuristicSolver(IntVar[] variables,
             VariableSelector<IntVar> variableSelector,
-            ACOParameters parameters) {
-        this(variables, variableSelector, parameters, System.currentTimeMillis());
+            ACOParameters parameters,
+            int maxCycles) {
+        this(variables, variableSelector, parameters, maxCycles, System.currentTimeMillis());
     }
 
     public AntColonyMetaHeuristicSolver(IntVar[] variables,
             VariableSelector<IntVar> variableSelector,
             ACOParameters parameters,
+            int maxCycles,
             long seed) {
         super(variables);
         this.model = variables[0].getModel();
         this.variableSelector = variableSelector;
         this.parameters = parameters;
+        this.maxCycles = maxCycles;
 
         this.adapter = new IntVarAdapter(variables);
 
@@ -79,15 +83,32 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         this.currentAntBestAssignment = Assignment.empty();
         this.currentAntMaxDepth = 0;
 
-        // Each ant gets a fixed budget: 50 failures per variable
-        // This scales linearly with problem size, ensuring consistent exploration depth
-        int failureLimit = vars.length * 50;
+        // Each ant gets a fixed budget: 5 failures per variable
+        int failureLimit = vars.length * 5;
         model.getSolver().addRestarter(new Restarter(
                 new GeometricalCutoff(failureLimit, 1.00001),  // Scale factor 1.0 = constant cutoff
                 new FailCounter(model, failureLimit),
                 Integer.MAX_VALUE,
                 false));
+        
+        model.getSolver().limitSearch(
+            () -> currentCycle >= maxCycles
+        );
     }
+
+    public AntColonyMetaHeuristicSolver(IntVar[] variables,
+            VariableSelector<IntVar> variableSelector,
+            ACOParameters parameters,
+            long seed) {
+        this(variables, variableSelector, parameters, 250, seed);
+    }
+
+    public AntColonyMetaHeuristicSolver(IntVar[] variables,
+            VariableSelector<IntVar> variableSelector,
+            ACOParameters parameters) {
+        this(variables, variableSelector, parameters, 250, System.currentTimeMillis());
+    }
+
 
     @Override
     public boolean init() {
@@ -257,12 +278,17 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         return List.copyOf(progressHistory);
     }
 
-    public void printProgressCSV() {
-        System.out.println("cycle,assigned_variables,total_variables,completion_rate");
+    public void printProgressCSV(long seed, String problemName, ACOParameters params) {
         int totalVars = adapter.getProblem().size();
         for (var progress : progressHistory) {
             double completionRate = (double) progress.assignedVariables() / totalVars;
-            System.out.printf(java.util.Locale.US, "%d,%d,%d,%.4f%n",
+            System.out.printf(java.util.Locale.US, "%d,%s,%.2f,%.2f,%.2f,%d,%d,%d,%d,%.4f%n",
+                    seed,
+                    problemName,
+                    params.alpha(),
+                    params.beta(),
+                    params.rho(),
+                    params.numberOfAnts(),
                     progress.cycle(),
                     progress.assignedVariables(),
                     totalVars,
