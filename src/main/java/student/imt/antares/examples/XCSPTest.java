@@ -131,14 +131,13 @@ public class XCSPTest {
         printResults(acoStrategy, seed, path, acoParams, endTime - startTime);
     }
     
-    private static void printResults(AntColonyMetaHeuristicSolver acoStrategy, long seed, 
+    private static void printResults(AntColonyMetaHeuristicSolver acoStrategy, long seed,
                                      String path, ACOParameters acoParams, long runtimeMs) {
-        acoStrategy.printProgressCSV();
-        
         String problemName = extractProblemName(path);
         int totalCycles = acoStrategy.getProgressHistory().size();
-        
+
         acoStrategy.printSummaryCSV(seed, problemName, acoParams, runtimeMs, totalCycles);
+        acoStrategy.printProgressCSV(seed, problemName, acoParams);
     }
     
     private static String extractProblemName(String path) {
