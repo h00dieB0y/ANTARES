@@ -26,7 +26,7 @@ public class CarSequencingTest {
         double tauMin = 0.01;
         double tauMax = 4.0;
         int nbAnts = 5;
-        int maxCycles = 500;  // Max cycles (default: 500 from paper)
+        int maxCycles = 50;  // Max cycles (default: 500 from paper)
 
         // Parse arguments
         int argIndex = 0;

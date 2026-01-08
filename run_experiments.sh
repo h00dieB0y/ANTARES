@@ -27,7 +27,7 @@ test_pheromone_importance() {
     BETA=0
     RHO=0.01
     NB_ANTS=30
-    MAX_CYCLES=500
+    MAX_CYCLES=50
 
     SUMMARY_CSV="${RESULTS_DIR}/alpha_influence_summary.csv"
     PROGRESS_CSV="${RESULTS_DIR}/alpha_influence_progress.csv"
@@ -60,7 +60,7 @@ test_evaporation_rate() {
     BETA=0
     RHOS=(0.01 0.02 0.03)
     NB_ANTS=30
-    MAX_CYCLES=500
+    MAX_CYCLES=50
 
     SUMMARY_CSV="${RESULTS_DIR}/rho_influence_summary.csv"
     PROGRESS_CSV="${RESULTS_DIR}/rho_influence_progress.csv"
