@@ -68,8 +68,5 @@ Desktop.ini
 *.swo
 *~.nib
 
-# Experiment results
-experiments_results/
-
 # Research papers
 *.pdf
