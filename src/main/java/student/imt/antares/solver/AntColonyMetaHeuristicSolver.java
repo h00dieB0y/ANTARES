@@ -10,7 +10,6 @@ import org.chocosolver.solver.search.strategy.decision.Decision;
 import org.chocosolver.solver.search.strategy.selectors.variables.VariableSelector;
 import org.chocosolver.solver.search.strategy.strategy.AbstractStrategy;
 import org.chocosolver.solver.variables.IntVar;
-import org.chocosolver.util.criteria.Criterion;
 
 import student.imt.antares.colony.ACOParameters;
 import student.imt.antares.colony.PheromoneMatrix;
@@ -83,7 +82,7 @@ public class AntColonyMetaHeuristicSolver extends AbstractStrategy<IntVar>
         this.currentAntBestAssignment = Assignment.empty();
         this.currentAntMaxDepth = 0;
 
-        // Each ant gets a fixed budget: 5 failures per variable
+        
         int failureLimit = vars.length * 5;
         model.getSolver().addRestarter(new Restarter(
                 new GeometricalCutoff(failureLimit, 1.00001),  // Scale factor 1.0 = constant cutoff
